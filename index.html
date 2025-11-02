@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デジタル・マーカー式暗記ツール</title>
+    <title>デジタル・マーカー式暗記ツール v2.0</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -11,11 +11,10 @@
             --rule-bg: #eef1f5;
             --text-color: #333;
             --border-color: #d1d9e6;
-            --marker-color: #333; /* マーカーの色（黒） */
-            --marker-reveal-bg: #fffde7; /* 答え表示時の背景色 */
             --header-bg: #4a6fa5;
             --header-text: #ffffff;
             --button-bg: #5a85c8;
+            --highlight-bg: #fdff32;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
@@ -33,9 +32,11 @@
             padding: 10px 20px;
             display: flex;
             align-items: center;
-            gap: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             flex-shrink: 0;
+            z-index: 10;
         }
         header h1 {
             font-size: 1.2em;
@@ -51,6 +52,7 @@
             padding: 5px 10px;
             border-radius: 4px;
             border: 1px solid var(--border-color);
+            background-color: #f0f8ff;
         }
         button {
             background-color: var(--button-bg);
@@ -63,13 +65,13 @@
         }
         main {
             display: flex;
+            flex-direction: column; /* 上下分割に変更 */
             flex-grow: 1;
             padding: 15px;
             gap: 15px;
             overflow: hidden;
         }
         .panel {
-            flex: 1;
             background-color: var(--main-bg);
             border-radius: 8px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
@@ -78,18 +80,35 @@
             flex-direction: column;
             overflow: hidden;
         }
-        .panel h2 {
-            font-size: 1em;
-            margin: 0;
-            padding: 12px 15px;
+        .panel.main {
+            flex-grow: 1;
+        }
+        .panel.rules {
+            flex-shrink: 0;
+            height: 150px; /* 初期高さ */
+            transition: height 0.3s ease;
+        }
+        .panel.rules.closed {
+            height: 40px; /* 閉じたときの高さ */
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 15px;
             border-bottom: 1px solid var(--border-color);
             background-color: #f9fafb;
+            cursor: pointer;
         }
-        textarea {
+        .panel-header h2 {
+            font-size: 1em;
+            margin: 0;
+        }
+        textarea, #main-text-area {
             flex-grow: 1;
             border: none;
             padding: 15px;
-            font-size: 16px;
+            font-size: 18px;
             line-height: 1.8;
             resize: none;
             outline: none;
@@ -108,23 +127,49 @@
             line-height: 1.6;
         }
         .marker {
-            background-color: var(--marker-color);
-            color: transparent;
             cursor: pointer;
             border-radius: 3px;
             padding: 0.1em 0;
-            transition: background-color 0.2s;
-            user-select: none; /* テキスト選択を無効化 */
+            transition: background-color 0.2s, color 0.2s;
+            user-select: none;
         }
         .marker.reveal {
-            background-color: var(--marker-reveal-bg);
-            color: var(--text-color);
+            color: var(--text-color) !important;
+            background-color: var(--highlight-bg) !important;
+            background-image: none !important;
+        }
+        .speech-highlight {
+            background-color: var(--highlight-bg);
+            border-radius: 3px;
+        }
+        .marker-palette {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            background-color: #e3eaf3;
+            padding: 5px 8px;
+            border-radius: 6px;
+        }
+        .palette-item {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid transparent;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 16px;
+        }
+        .palette-item.selected {
+            border-color: #007bff;
+            box-shadow: 0 0 5px rgba(0,123,255,0.5);
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>デジタル・マーカー式暗記ツール</h1>
+        <h1>マーカー式暗記ツール v2.0</h1>
         <div class="control-group">
             <label for="doc-select">文章:</label>
             <select id="doc-select">
@@ -134,103 +179,140 @@
             </select>
         </div>
         <div class="control-group">
-            <label for="anchor-length">アンカー文字数:</label>
-            <input type="number" id="anchor-length" value="7" min="3" max="20" style="width: 50px;">
+            <button id="speech-btn">▶ 読み上げ</button>
+            <select id="voice-select"></select>
+        </div>
+        <div class="marker-palette">
+            <!-- マーカーパレットがここに追加されます -->
         </div>
     </header>
 
     <main>
-        <div class="panel">
-            <h2>1. ここに覚えたい文章を貼り付け、マーカーを引く</h2>
+        <div class="panel main">
+             <div class="panel-header" style="cursor: default;">
+                <h2>1. ここに文章を貼り付け、下のパレットからマーカーを選んで引く</h2>
+            </div>
             <div id="main-text-area" contenteditable="true" spellcheck="false"></div>
         </div>
-        <div class="panel">
-            <h2>2. マーカーのルール (他デバイスにコピペで同期)</h2>
+        <div class="panel rules" id="rules-panel">
+            <div class="panel-header" id="rules-header">
+                <h2>2. マーカーのルール (他デバイスにコピペで同期)</h2>
+                <span id="toggle-rules-btn">▼ 閉じる</span>
+            </div>
             <textarea id="rules-text-area" placeholder="文章の上でテキストを選択してマーカーを引くと、ここにルールが自動生成されます。"></textarea>
         </div>
     </main>
 
     <script>
-    class MarkerTool {
+    class MarkerToolV2 {
         constructor() {
-            // DOM要素の取得
+            // DOM要素
             this.mainTextArea = document.getElementById('main-text-area');
             this.rulesTextArea = document.getElementById('rules-text-area');
             this.docSelect = document.getElementById('doc-select');
-            this.anchorLengthInput = document.getElementById('anchor-length');
+            this.speechBtn = document.getElementById('speech-btn');
+            this.voiceSelect = document.getElementById('voice-select');
+            this.rulesPanel = document.getElementById('rules-panel');
+            this.rulesHeader = document.getElementById('rules-header');
+            this.toggleRulesBtn = document.getElementById('toggle-rules-btn');
             
-            // アプリケーションの状態
+            // マーカーパレット
+            this.markerPaletteContainer = document.querySelector('.marker-palette');
+            this.markerStyles = [
+                { type: 'C', value: '#333333', display: '⚫' }, // 黒
+                { type: 'C', value: '#e53935', display: '🔴' }, // 赤
+                { type: 'C', value: '#1e88e5', display: '🔵' }, // 青
+                { type: 'C', value: '#43a047', display: '🟢' }, // 緑
+                { type: 'E', value: '😀', display: '😀' },
+                { type: 'E', value: '❓', display: '❓' },
+                { type: 'E', value: '🧠', display: '🧠' }
+            ];
+
+            // アプリケーション状態
             this.state = {
                 currentDocId: 'doc1',
                 anchorLength: 7,
-                documents: {}, // 各ドキュメントの原文を保持
-                lastTap: 0, // ダブルタップ判定用
-                lastClickedMarker: null // ダブルタップされたマーカー
+                documents: {},
+                lastTap: 0,
+                lastClickedMarker: null,
+                selectedMarkerStyle: this.markerStyles[0],
+                isSpeaking: false,
+                voices: []
             };
 
             this.init();
         }
 
         init() {
+            this.createMarkerPalette();
             this.loadState();
+            this.initSpeech();
             this.bindEvents();
             this.updateDocumentView();
         }
 
-        bindEvents() {
-            // 文章エリアでのマウスアップ（マーカー作成）
-            this.mainTextArea.addEventListener('mouseup', () => this.handleSelection());
-            this.mainTextArea.addEventListener('touchend', () => this.handleSelection());
-            
-            // ルールエリアの入力（同期反映）
-            this.rulesTextArea.addEventListener('input', () => this.applyRules());
-            
-            // ドキュメント切り替え
-            this.docSelect.addEventListener('change', (e) => this.switchDocument(e.target.value));
+        createMarkerPalette() {
+            this.markerStyles.forEach((style, index) => {
+                const item = document.createElement('div');
+                item.className = 'palette-item';
+                item.textContent = style.display;
+                item.style.backgroundColor = style.type === 'C' ? style.value : 'transparent';
+                if (style.type === 'C' && style.value === '#333333') item.style.color = '#fff';
 
-            // アンカー文字数変更
-            this.anchorLengthInput.addEventListener('change', (e) => {
-                this.state.anchorLength = parseInt(e.target.value, 10);
-                this.saveState();
+                item.addEventListener('click', () => {
+                    this.state.selectedMarkerStyle = style;
+                    this.updatePaletteSelection();
+                });
+                this.markerPaletteContainer.appendChild(item);
             });
-            
-            // マーカークリック（答え表示／マーカー削除）
-            this.mainTextArea.addEventListener('click', (e) => this.handleMarkerClick(e));
+            this.updatePaletteSelection();
+        }
+
+        updatePaletteSelection() {
+            Array.from(this.markerPaletteContainer.children).forEach((item, index) => {
+                if (this.markerStyles[index] === this.state.selectedMarkerStyle) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
         }
         
-        // --- 主要なロジック ---
+        bindEvents() {
+            this.mainTextArea.addEventListener('mouseup', () => this.handleSelection());
+            this.rulesTextArea.addEventListener('input', () => this.applyRules());
+            this.docSelect.addEventListener('change', (e) => this.switchDocument(e.target.value));
+            this.mainTextArea.addEventListener('click', (e) => this.handleMarkerClick(e));
+            this.rulesHeader.addEventListener('click', () => this.toggleRulesPanel());
+            this.speechBtn.addEventListener('click', () => this.toggleSpeech());
+        }
+
+        // --- 主要ロジック ---
 
         handleSelection() {
             const selection = window.getSelection();
+            if (!selection.rangeCount || selection.isCollapsed) return;
             const selectedText = selection.toString().trim();
-
             if (!selectedText) return;
 
-            // アンカー方式でルールを作成
             const range = selection.getRangeAt(0);
             const hiddenText = range.toString();
 
-            // アンカー（前）の取得
             const preRange = document.createRange();
             preRange.setStart(range.startContainer, 0);
             preRange.setEnd(range.startContainer, range.startOffset);
             const prefix = preRange.toString().slice(-this.state.anchorLength);
 
-            // アンカー（後）の取得
             const postRange = document.createRange();
             postRange.setStart(range.endContainer, range.endOffset);
             postRange.setEnd(range.endContainer, range.endContainer.length);
             const suffix = postRange.toString().slice(0, this.state.anchorLength);
 
-            const rule = `${this.state.currentDocId} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText}`;
+            const styleString = `%% ${this.state.selectedMarkerStyle.type}${this.state.selectedMarkerStyle.value}`;
+            const rule = `${this.state.currentDocId} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText} ${styleString}`;
             
-            // 既存のルールに追加
             this.rulesTextArea.value += (this.rulesTextArea.value ? '\n' : '') + rule;
-            
-            // 画面に即時反映
             this.applyRules();
-
-            // 選択を解除
             selection.removeAllRanges();
         }
 
@@ -239,19 +321,15 @@
                 this.clearAllReveals();
                 return;
             }
-
             const marker = e.target;
             const currentTime = new Date().getTime();
             const timeSinceLastTap = currentTime - this.state.lastTap;
 
-            // ダブルタップ判定（500ミリ秒以内）
             if (timeSinceLastTap < 500 && this.state.lastClickedMarker === marker) {
-                // マーカー削除
                 this.removeMarker(marker);
-                this.state.lastTap = 0; // リセット
+                this.state.lastTap = 0;
                 this.state.lastClickedMarker = null;
             } else {
-                // シングルタップ（答え表示）
                 this.clearAllReveals();
                 marker.classList.add('reveal');
                 this.state.lastTap = currentTime;
@@ -260,67 +338,211 @@
         }
 
         removeMarker(markerElement) {
-            const hiddenText = markerElement.textContent;
+            const hiddenText = markerElement.dataset.originalText;
+            const styleString = markerElement.dataset.style;
             
-            // マーカー周辺のテキストからアンカーを再構築
             const parent = markerElement.parentNode;
             let fullText = parent.textContent;
-            let markerIndex = fullText.indexOf(hiddenText);
+            // Note: This logic for finding index is simple. More robust logic may be needed for complex cases.
+            let tempText = "";
+            for (const node of parent.childNodes) {
+                if (node === markerElement) {
+                    tempText += hiddenText;
+                } else {
+                    tempText += node.textContent;
+                }
+            }
+            let markerIndex = tempText.indexOf(hiddenText);
             
-            const prefix = fullText.substring(markerIndex - this.state.anchorLength, markerIndex).trim();
-            const suffix = fullText.substring(markerIndex + hiddenText.length, markerIndex + hiddenText.length + this.state.anchorLength).trim();
+            const prefix = tempText.substring(markerIndex - this.state.anchorLength, markerIndex).trim();
+            const suffix = tempText.substring(markerIndex + hiddenText.length, markerIndex + hiddenText.length + this.state.anchorLength).trim();
+
+            const ruleToRemove = `${this.state.currentDocId} :: ${prefix}...${suffix} -> ${hiddenText} %% ${styleString}`;
             
-            const ruleToRemove = `${this.state.currentDocId} :: ${prefix}...${suffix} -> ${hiddenText}`;
-            
-            // ルールテキストエリアから該当行を削除
             const rules = this.rulesTextArea.value.split('\n');
-            const newRules = rules.filter(line => line.trim() !== ruleToRemove.trim());
-            this.rulesTextArea.value = newRules.join('\n');
-            
-            // 画面に反映
-            this.applyRules();
+            // A more robust removal logic to handle potential duplicate-looking rules
+            const indexToRemove = rules.findIndex(line => line.trim() === ruleToRemove.trim());
+            if (indexToRemove > -1) {
+                rules.splice(indexToRemove, 1);
+                this.rulesTextArea.value = rules.join('\n');
+                this.applyRules();
+            }
         }
-        
+
         applyRules() {
-            // 1. 現在の文章の原文を取得・保存
             const originalText = this.getOriginalText();
             this.state.documents[this.state.currentDocId] = originalText;
-            this.mainTextArea.innerHTML = ''; // 一旦クリア
-            
-            // 2. 適用すべきルールをフィルタリング
+            this.mainTextArea.innerHTML = '';
+
             const allRules = this.rulesTextArea.value.split('\n').filter(line => line.trim() !== '');
             const targetRules = allRules.filter(line => line.startsWith(this.state.currentDocId + ' ::'));
-            
-            let textToProcess = originalText;
-            
-            // 3. ルールを適用してHTMLを構築
-            // NOTE: この部分は簡易的な実装です。重複するアンカーがあると最初のものにしか適用されません。
-            // 本番環境ではより堅牢なアルゴリズムが必要です。
+
+            let segments = [{ text: originalText, type: 'text' }];
+
             targetRules.forEach(rule => {
                 try {
-                    const parts = rule.split(' -> ');
-                    const hiddenText = parts[1];
-                    const anchorParts = parts[0].split(' :: ')[1].split('...');
+                    const ruleParts = rule.split(' -> ');
+                    const hiddenTextAndStyle = ruleParts[1].split(' %% ');
+                    const hiddenText = hiddenTextAndStyle[0];
+                    const styleString = hiddenTextAndStyle[1];
+                    const anchorParts = ruleParts[0].split(' :: ')[1].split('...');
                     const prefix = anchorParts[0];
                     const suffix = anchorParts[1];
 
-                    const regex = new RegExp(`(${this.escapeRegExp(prefix)})(${this.escapeRegExp(hiddenText)})(${this.escapeRegExp(suffix)})`, 'g');
-                    textToProcess = textToProcess.replace(regex, `$1<span class="marker">$2</span>$3`);
-                } catch(e) {
-                    // ルールが不正な場合は無視
+                    const fullAnchor = prefix + hiddenText + suffix;
+                    
+                    for (let i = 0; i < segments.length; i++) {
+                        if (segments[i].type === 'text') {
+                            const index = segments[i].text.indexOf(fullAnchor);
+                            if (index > -1) {
+                                const before = segments[i].text.substring(0, index + prefix.length);
+                                const after = segments[i].text.substring(index + prefix.length + hiddenText.length);
+                                
+                                const newSegments = [];
+                                if (before) newSegments.push({ text: before, type: 'text' });
+                                newSegments.push({ text: hiddenText, type: 'marker', style: styleString });
+                                if (after) newSegments.push({ text: after, type: 'text' });
+
+                                segments.splice(i, 1, ...newSegments);
+                                break; 
+                            }
+                        }
+                    }
+                } catch (e) { console.error("Rule parsing error:", e); }
+            });
+
+            segments.forEach(seg => {
+                if (seg.type === 'text') {
+                    this.mainTextArea.appendChild(document.createTextNode(seg.text));
+                } else {
+                    const markerSpan = document.createElement('span');
+                    markerSpan.className = 'marker';
+                    markerSpan.dataset.originalText = seg.text;
+                    markerSpan.dataset.style = seg.style;
+                    
+                    const type = seg.style.charAt(0);
+                    const value = seg.style.substring(1);
+                    if (type === 'C') {
+                        markerSpan.style.backgroundColor = value;
+                        markerSpan.style.color = 'transparent';
+                        markerSpan.textContent = " ".repeat(seg.text.length).replace(/ /g, '\u00A0');
+                    } else if (type === 'E') {
+                        markerSpan.textContent = value.repeat(seg.text.length);
+                        markerSpan.style.color = '#333';
+                        markerSpan.style.letterSpacing = '0.1em';
+                    }
+
+                    this.mainTextArea.appendChild(markerSpan);
                 }
             });
             
-            this.mainTextArea.innerHTML = textToProcess.replace(/\n/g, '<br>');
+            this.mainTextArea.innerHTML = this.mainTextArea.innerHTML.replace(/\n/g, '<br>');
             this.saveState();
         }
-        
-        // --- 補助的な関数 ---
+
+        // --- UI & 読み上げ ---
+
+        toggleRulesPanel() {
+            this.rulesPanel.classList.toggle('closed');
+            this.toggleRulesBtn.textContent = this.rulesPanel.classList.contains('closed') ? '▲ 開く' : '▼ 閉じる';
+        }
+
+        initSpeech() {
+            if (!('speechSynthesis' in window)) {
+                this.speechBtn.disabled = true;
+                this.speechBtn.textContent = "読上不可";
+                return;
+            }
+            speechSynthesis.onvoiceschanged = () => {
+                this.state.voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('ja'));
+                this.voiceSelect.innerHTML = '';
+                this.state.voices.forEach(v => {
+                    const option = document.createElement('option');
+                    option.textContent = v.name;
+                    this.voiceSelect.appendChild(option);
+                });
+            };
+            // Initial load
+            setTimeout(() => speechSynthesis.onvoiceschanged(), 100);
+        }
+
+        toggleSpeech() {
+            if (this.state.isSpeaking) {
+                speechSynthesis.cancel();
+                this.state.isSpeaking = false;
+                this.speechBtn.textContent = "▶ 読み上げ";
+            } else {
+                const textToSpeak = this.getOriginalText();
+                if (!textToSpeak.trim()) return;
+
+                const utterance = new SpeechSynthesisUtterance(textToSpeak);
+                const selectedVoiceName = this.voiceSelect.value;
+                const voice = this.state.voices.find(v => v.name === selectedVoiceName);
+                if (voice) utterance.voice = voice;
+                
+                let charIndex = 0;
+                utterance.onboundary = (event) => {
+                    if (event.name === 'word') {
+                       this.highlightText(event.charIndex, event.charLength);
+                    }
+                };
+
+                utterance.onend = () => {
+                    this.state.isSpeaking = false;
+                    this.speechBtn.textContent = "▶ 読み上げ";
+                    this.clearHighlight();
+                };
+
+                speechSynthesis.speak(utterance);
+                this.state.isSpeaking = true;
+                this.speechBtn.textContent = "⏹ 停止";
+            }
+        }
+
+        highlightText(start, length) {
+            this.clearHighlight();
+            const originalText = this.getOriginalText();
+            // A simplified highlight logic. Might need refinement.
+            const wrapper = document.createElement('span');
+            wrapper.className = 'speech-highlight';
+
+            const range = document.createRange();
+            let currentNode, charCount = 0;
+            const treeWalker = document.createTreeWalker(this.mainTextArea, Node.TEXT_NODE);
+            
+            while(currentNode = treeWalker.nextNode()) {
+                const textLength = currentNode.textContent.length;
+                if (charCount + textLength > start) {
+                    const startIndex = start - charCount;
+                    const endIndex = Math.min(startIndex + length, textLength);
+                    range.setStart(currentNode, startIndex);
+                    range.setEnd(currentNode, endIndex);
+                    try {
+                        range.surroundContents(wrapper);
+                    } catch(e) { /* ignore overlapping issues */ }
+                    break;
+                }
+                charCount += textLength;
+            }
+        }
+
+        clearHighlight() {
+            const highlighted = this.mainTextArea.querySelector('.speech-highlight');
+            if (highlighted) {
+                const parent = highlighted.parentNode;
+                while (highlighted.firstChild) {
+                    parent.insertBefore(highlighted.firstChild, highlighted);
+                }
+                parent.removeChild(highlighted);
+                parent.normalize(); // Merge text nodes
+            }
+        }
+
+        // --- 補助関数 & 状態管理 ---
         
         switchDocument(docId) {
-            // 現在のドキュメントの状態を保存
+            if (this.state.isSpeaking) this.toggleSpeech();
             this.state.documents[this.state.currentDocId] = this.getOriginalText();
-
             this.state.currentDocId = docId;
             this.updateDocumentView();
             this.saveState();
@@ -328,16 +550,23 @@
         
         updateDocumentView() {
             this.docSelect.value = this.state.currentDocId;
-            const text = this.state.documents[this.state.currentDocId] || `これは「${this.docSelect.options[this.docSelect.selectedIndex].text}」のエリアです。\nここに文章を貼り付けてください。`;
+            const text = this.state.documents[this.state.currentDocId] || `これは「${this.docSelect.options[this.docSelect.selectedIndex].text}」です。\nここに学習したい文章を貼り付けてください。`;
             this.mainTextArea.textContent = text;
             this.applyRules();
         }
         
         getOriginalText() {
-            // contenteditableなdivから原文（プレーンテキスト）を取得
-            // <br>を改行文字に変換
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = this.mainTextArea.innerHTML.replace(/<br\s*[\/]?>/gi, '\n');
+            // This is a complex part: we need to reconstruct text from markers
+            this.mainTextArea.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    tempDiv.appendChild(node.cloneNode());
+                } else if (node.nodeName === 'SPAN' && node.classList.contains('marker')) {
+                    tempDiv.appendChild(document.createTextNode(node.dataset.originalText));
+                } else if (node.nodeName === 'BR') {
+                    tempDiv.appendChild(document.createTextNode('\n'));
+                }
+            });
             return tempDiv.textContent || '';
         }
 
@@ -345,37 +574,28 @@
             this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => m.classList.remove('reveal'));
         }
 
-        escapeRegExp(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-
-        // --- 状態の保存と読み込み ---
-        
         saveState() {
             const dataToSave = {
                 documents: this.state.documents,
                 rules: this.rulesTextArea.value,
                 currentDocId: this.state.currentDocId,
-                anchorLength: this.state.anchorLength
             };
-            localStorage.setItem('markerToolState', JSON.stringify(dataToSave));
+            localStorage.setItem('markerToolState_v2', JSON.stringify(dataToSave));
         }
 
         loadState() {
-            const savedState = localStorage.getItem('markerToolState');
+            const savedState = localStorage.getItem('markerToolState_v2');
             if (savedState) {
                 const data = JSON.parse(savedState);
                 this.state.documents = data.documents || {};
                 this.rulesTextArea.value = data.rules || '';
                 this.state.currentDocId = data.currentDocId || 'doc1';
-                this.state.anchorLength = data.anchorLength || 7;
-                this.anchorLengthInput.value = this.state.anchorLength;
             }
         }
     }
 
-    // アプリケーションの起動
-    new MarkerTool();
+    new MarkerToolV2();
     </script>
 </body>
 </html>
+
