@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>デジタル・マーカー式暗記ツール</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9;
+            --main-bg: #ffffff;
+            --rule-bg: #eef1f5;
+            --text-color: #333;
+            --border-color: #d1d9e6;
+            --marker-color: #333; /* マーカーの色（黒） */
+            --marker-reveal-bg: #fffde7; /* 答え表示時の背景色 */
+            --header-bg: #4a6fa5;
+            --header-text: #ffffff;
+            --button-bg: #5a85c8;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+        }
+        header {
+            background-color: var(--header-bg);
+            color: var(--header-text);
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+        }
+        header h1 {
+            font-size: 1.2em;
+            margin: 0;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        select, input, button {
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+        }
+        button {
+            background-color: var(--button-bg);
+            color: var(--header-text);
+            cursor: pointer;
+            border-color: transparent;
+        }
+        button:hover {
+            opacity: 0.9;
+        }
+        main {
+            display: flex;
+            flex-grow: 1;
+            padding: 15px;
+            gap: 15px;
+            overflow: hidden;
+        }
+        .panel {
+            flex: 1;
+            background-color: var(--main-bg);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .panel h2 {
+            font-size: 1em;
+            margin: 0;
+            padding: 12px 15px;
+            border-bottom: 1px solid var(--border-color);
+            background-color: #f9fafb;
+        }
+        textarea {
+            flex-grow: 1;
+            border: none;
+            padding: 15px;
+            font-size: 16px;
+            line-height: 1.8;
+            resize: none;
+            outline: none;
+            background-color: transparent;
+            font-family: inherit;
+        }
+        #main-text-area {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-y: auto;
+        }
+        #rules-text-area {
+            background-color: var(--rule-bg);
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .marker {
+            background-color: var(--marker-color);
+            color: transparent;
+            cursor: pointer;
+            border-radius: 3px;
+            padding: 0.1em 0;
+            transition: background-color 0.2s;
+            user-select: none; /* テキスト選択を無効化 */
+        }
+        .marker.reveal {
+            background-color: var(--marker-reveal-bg);
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>デジタル・マーカー式暗記ツール</h1>
+        <div class="control-group">
+            <label for="doc-select">文章:</label>
+            <select id="doc-select">
+                <option value="doc1">文章①</option>
+                <option value="doc2">文章②</option>
+                <option value="doc3">文章③</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="anchor-length">アンカー文字数:</label>
+            <input type="number" id="anchor-length" value="7" min="3" max="20" style="width: 50px;">
+        </div>
+    </header>
+
+    <main>
+        <div class="panel">
+            <h2>1. ここに覚えたい文章を貼り付け、マーカーを引く</h2>
+            <div id="main-text-area" contenteditable="true" spellcheck="false"></div>
+        </div>
+        <div class="panel">
+            <h2>2. マーカーのルール (他デバイスにコピペで同期)</h2>
+            <textarea id="rules-text-area" placeholder="文章の上でテキストを選択してマーカーを引くと、ここにルールが自動生成されます。"></textarea>
+        </div>
+    </main>
+
+    <script>
+    class MarkerTool {
+        constructor() {
+            // DOM要素の取得
+            this.mainTextArea = document.getElementById('main-text-area');
+            this.rulesTextArea = document.getElementById('rules-text-area');
+            this.docSelect = document.getElementById('doc-select');
+            this.anchorLengthInput = document.getElementById('anchor-length');
+            
+            // アプリケーションの状態
+            this.state = {
+                currentDocId: 'doc1',
+                anchorLength: 7,
+                documents: {}, // 各ドキュメントの原文を保持
+                lastTap: 0, // ダブルタップ判定用
+                lastClickedMarker: null // ダブルタップされたマーカー
+            };
+
+            this.init();
+        }
+
+        init() {
+            this.loadState();
+            this.bindEvents();
+            this.updateDocumentView();
+        }
+
+        bindEvents() {
+            // 文章エリアでのマウスアップ（マーカー作成）
+            this.mainTextArea.addEventListener('mouseup', () => this.handleSelection());
+            this.mainTextArea.addEventListener('touchend', () => this.handleSelection());
+            
+            // ルールエリアの入力（同期反映）
+            this.rulesTextArea.addEventListener('input', () => this.applyRules());
+            
+            // ドキュメント切り替え
+            this.docSelect.addEventListener('change', (e) => this.switchDocument(e.target.value));
+
+            // アンカー文字数変更
+            this.anchorLengthInput.addEventListener('change', (e) => {
+                this.state.anchorLength = parseInt(e.target.value, 10);
+                this.saveState();
+            });
+            
+            // マーカークリック（答え表示／マーカー削除）
+            this.mainTextArea.addEventListener('click', (e) => this.handleMarkerClick(e));
+        }
+        
+        // --- 主要なロジック ---
+
+        handleSelection() {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+
+            if (!selectedText) return;
+
+            // アンカー方式でルールを作成
+            const range = selection.getRangeAt(0);
+            const hiddenText = range.toString();
+
+            // アンカー（前）の取得
+            const preRange = document.createRange();
+            preRange.setStart(range.startContainer, 0);
+            preRange.setEnd(range.startContainer, range.startOffset);
+            const prefix = preRange.toString().slice(-this.state.anchorLength);
+
+            // アンカー（後）の取得
+            const postRange = document.createRange();
+            postRange.setStart(range.endContainer, range.endOffset);
+            postRange.setEnd(range.endContainer, range.endContainer.length);
+            const suffix = postRange.toString().slice(0, this.state.anchorLength);
+
+            const rule = `${this.state.currentDocId} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText}`;
+            
+            // 既存のルールに追加
+            this.rulesTextArea.value += (this.rulesTextArea.value ? '\n' : '') + rule;
+            
+            // 画面に即時反映
+            this.applyRules();
+
+            // 選択を解除
+            selection.removeAllRanges();
+        }
+
+        handleMarkerClick(e) {
+            if (!e.target.classList.contains('marker')) {
+                this.clearAllReveals();
+                return;
+            }
+
+            const marker = e.target;
+            const currentTime = new Date().getTime();
+            const timeSinceLastTap = currentTime - this.state.lastTap;
+
+            // ダブルタップ判定（500ミリ秒以内）
+            if (timeSinceLastTap < 500 && this.state.lastClickedMarker === marker) {
+                // マーカー削除
+                this.removeMarker(marker);
+                this.state.lastTap = 0; // リセット
+                this.state.lastClickedMarker = null;
+            } else {
+                // シングルタップ（答え表示）
+                this.clearAllReveals();
+                marker.classList.add('reveal');
+                this.state.lastTap = currentTime;
+                this.state.lastClickedMarker = marker;
+            }
+        }
+
+        removeMarker(markerElement) {
+            const hiddenText = markerElement.textContent;
+            
+            // マーカー周辺のテキストからアンカーを再構築
+            const parent = markerElement.parentNode;
+            let fullText = parent.textContent;
+            let markerIndex = fullText.indexOf(hiddenText);
+            
+            const prefix = fullText.substring(markerIndex - this.state.anchorLength, markerIndex).trim();
+            const suffix = fullText.substring(markerIndex + hiddenText.length, markerIndex + hiddenText.length + this.state.anchorLength).trim();
+            
+            const ruleToRemove = `${this.state.currentDocId} :: ${prefix}...${suffix} -> ${hiddenText}`;
+            
+            // ルールテキストエリアから該当行を削除
+            const rules = this.rulesTextArea.value.split('\n');
+            const newRules = rules.filter(line => line.trim() !== ruleToRemove.trim());
+            this.rulesTextArea.value = newRules.join('\n');
+            
+            // 画面に反映
+            this.applyRules();
+        }
+        
+        applyRules() {
+            // 1. 現在の文章の原文を取得・保存
+            const originalText = this.getOriginalText();
+            this.state.documents[this.state.currentDocId] = originalText;
+            this.mainTextArea.innerHTML = ''; // 一旦クリア
+            
+            // 2. 適用すべきルールをフィルタリング
+            const allRules = this.rulesTextArea.value.split('\n').filter(line => line.trim() !== '');
+            const targetRules = allRules.filter(line => line.startsWith(this.state.currentDocId + ' ::'));
+            
+            let textToProcess = originalText;
+            
+            // 3. ルールを適用してHTMLを構築
+            // NOTE: この部分は簡易的な実装です。重複するアンカーがあると最初のものにしか適用されません。
+            // 本番環境ではより堅牢なアルゴリズムが必要です。
+            targetRules.forEach(rule => {
+                try {
+                    const parts = rule.split(' -> ');
+                    const hiddenText = parts[1];
+                    const anchorParts = parts[0].split(' :: ')[1].split('...');
+                    const prefix = anchorParts[0];
+                    const suffix = anchorParts[1];
+
+                    const regex = new RegExp(`(${this.escapeRegExp(prefix)})(${this.escapeRegExp(hiddenText)})(${this.escapeRegExp(suffix)})`, 'g');
+                    textToProcess = textToProcess.replace(regex, `$1<span class="marker">$2</span>$3`);
+                } catch(e) {
+                    // ルールが不正な場合は無視
+                }
+            });
+            
+            this.mainTextArea.innerHTML = textToProcess.replace(/\n/g, '<br>');
+            this.saveState();
+        }
+        
+        // --- 補助的な関数 ---
+        
+        switchDocument(docId) {
+            // 現在のドキュメントの状態を保存
+            this.state.documents[this.state.currentDocId] = this.getOriginalText();
+
+            this.state.currentDocId = docId;
+            this.updateDocumentView();
+            this.saveState();
+        }
+        
+        updateDocumentView() {
+            this.docSelect.value = this.state.currentDocId;
+            const text = this.state.documents[this.state.currentDocId] || `これは「${this.docSelect.options[this.docSelect.selectedIndex].text}」のエリアです。\nここに文章を貼り付けてください。`;
+            this.mainTextArea.textContent = text;
+            this.applyRules();
+        }
+        
+        getOriginalText() {
+            // contenteditableなdivから原文（プレーンテキスト）を取得
+            // <br>を改行文字に変換
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = this.mainTextArea.innerHTML.replace(/<br\s*[\/]?>/gi, '\n');
+            return tempDiv.textContent || '';
+        }
+
+        clearAllReveals() {
+            this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => m.classList.remove('reveal'));
+        }
+
+        escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // --- 状態の保存と読み込み ---
+        
+        saveState() {
+            const dataToSave = {
+                documents: this.state.documents,
+                rules: this.rulesTextArea.value,
+                currentDocId: this.state.currentDocId,
+                anchorLength: this.state.anchorLength
+            };
+            localStorage.setItem('markerToolState', JSON.stringify(dataToSave));
+        }
+
+        loadState() {
+            const savedState = localStorage.getItem('markerToolState');
+            if (savedState) {
+                const data = JSON.parse(savedState);
+                this.state.documents = data.documents || {};
+                this.rulesTextArea.value = data.rules || '';
+                this.state.currentDocId = data.currentDocId || 'doc1';
+                this.state.anchorLength = data.anchorLength || 7;
+                this.anchorLengthInput.value = this.state.anchorLength;
+            }
+        }
+    }
+
+    // アプリケーションの起動
+    new MarkerTool();
+    </script>
+</body>
+</html>
