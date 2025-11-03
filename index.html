@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デジタル・マーカー式暗記ツール v3.2.1</title>
+    <title>デジタル・マーカー式暗記ツール v3.2.2</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff; --rule-bg: #eef1f5;
@@ -282,10 +282,31 @@
             this.state.selectionRange = null;
         }
 
+        createMarkerFromPalette(style) {
+            if (!this.state.selectionRange) return;
+            const hiddenText = this.state.selectionRange.toString().trim();
+            if (!hiddenText) { this.hideMiniPalette(); return; }
+            const preRange = document.createRange();
+            preRange.setStart(this.state.selectionRange.startContainer, 0);
+            preRange.setEnd(this.state.selectionRange.startContainer, this.state.selectionRange.startOffset);
+            const prefix = preRange.toString().slice(-this.state.anchorLength);
+            const postRange = document.createRange();
+            postRange.setStart(this.state.selectionRange.endContainer, this.state.selectionRange.endOffset);
+            postRange.setEnd(this.state.selectionRange.endContainer, this.state.selectionRange.endContainer.length);
+            const suffix = postRange.toString().slice(0, this.state.anchorLength);
+            const styleString = `%% ${style.type}${style.value}`;
+            const rule = `${this.state.currentDocIndex} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText} ${styleString}`;
+            const currentRules = this.state.appData.rules.split('\n').filter(Boolean);
+            currentRules.push(rule);
+            this.state.appData.rules = currentRules.join('\n');
+            this.applyRules();
+            this.hideMiniPalette();
+            window.getSelection().removeAllRanges();
+        }
+
         handleMarkerClick(e) {
             const marker = e.target.closest('.marker');
             if (!marker) return;
-
             const now = Date.now();
             if (now - this.state.lastTapTime < 300 && this.state.lastTapTarget === marker) {
                 this.removeRule(marker.dataset.fullRule);
@@ -343,18 +364,14 @@
         importCurrentDocRules() {
             const pastedRules = prompt("ここに、コピーしたマーカールールを貼り付けてください。\n注意：この文章の既存のマーカーは上書きされます。");
             if (pastedRules === null) return;
-
             const otherDocsRules = this.state.appData.rules.split('\n').filter(Boolean)
                 .filter(rule => !rule.startsWith(this.state.currentDocIndex + ' ::'));
-            
             const newRules = pastedRules.split('\n').filter(Boolean);
             const isValid = newRules.every(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
-
             if (!isValid) {
                 alert("エラー：貼り付けられたデータは、この文章用のルールではないようです。");
                 return;
             }
-
             this.state.appData.rules = [...otherDocsRules, ...newRules].join('\n');
             this.applyRules();
         }
@@ -401,7 +418,7 @@
                     markerSpan.className = 'marker';
                     markerSpan.dataset.originalText = seg.text;
                     markerSpan.dataset.style = seg.style;
-                    markerSpan.dataset.fullRule = rule;
+                    markerSpan.dataset.fullRule = seg.fullRule;
                     const type = seg.style.charAt(0);
                     const value = seg.style.substring(1);
                     if (type === 'E') { markerSpan.textContent = value.repeat(seg.text.length); }
@@ -638,8 +655,8 @@
             if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
             const textToSpeak = this.getOriginalText();
             if (!textToSpeak.trim()) return;
-            // ★★★ BUG FIX HERE ★★★
-            const utterance = new SpeechSynthesisUtterance(textToSpeak); // Corrected typo
+            // ★★★ THE CRITICAL BUG FIX IS HERE ★★★
+            const utterance = new SpeechSynthesisUtterance(textToSpeak); // Corrected typo from previous versions
             const voice = this.state.voices.find(v => v.name === this.voiceSelect.value);
             if (voice) utterance.voice = voice;
             utterance.onstart = () => { this.state.isSpeaking = true; this.speechBtn.textContent = "⏹ 停止"; };
@@ -658,8 +675,9 @@
                 const textLength = node.textContent.length;
                 if (charCount <= start && start < charCount + textLength) {
                     const range = document.createRange();
-                    const startIndexInNode = start - charCount;
+                    const startIndexInNode = Math.max(0, start - charCount);
                     const endIndexInNode = Math.min(startIndexInNode + length, textLength);
+                    if (startIndexInNode >= endIndexInNode) continue;
                     range.setStart(node, startIndexInNode);
                     range.setEnd(node, endIndexInNode);
                     const wrapper = document.createElement('span');
@@ -680,30 +698,8 @@
                 parent.normalize();
             }
         }
-
-        createMarkerFromPalette(style) {
-            if (!this.state.selectionRange) return;
-            const hiddenText = this.state.selectionRange.toString().trim();
-            if (!hiddenText) return;
-            const preRange = document.createRange();
-            preRange.setStart(this.state.selectionRange.startContainer, 0);
-            preRange.setEnd(this.state.selectionRange.startContainer, this.state.selectionRange.startOffset);
-            const prefix = preRange.toString().slice(-this.state.anchorLength);
-            const postRange = document.createRange();
-            postRange.setStart(this.state.selectionRange.endContainer, this.state.selectionRange.endOffset);
-            postRange.setEnd(this.state.selectionRange.endContainer, this.state.selectionRange.endContainer.length);
-            const suffix = postRange.toString().slice(0, this.state.anchorLength);
-            const styleString = `%% ${style.type}${style.value}`;
-            const rule = `${this.state.currentDocIndex} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText} ${styleString}`;
-            const currentRules = this.state.appData.rules.split('\n').filter(Boolean);
-            currentRules.push(rule);
-            this.state.appData.rules = currentRules.join('\n');
-            this.applyRules();
-            this.hideMiniPalette();
-            window.getSelection().removeAllRanges();
-        }
     }
-    new MarkerToolV3_2();
+    new MarkerToolV3_2_1();
     </script>
 </body>
 </html>
