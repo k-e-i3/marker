@@ -345,8 +345,30 @@
             this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => this.unrevealMarker(m));
         }
 
-        toggleAllMarkersVisibility(show) {
-            this.mainContainer.classList.toggle('markers-hidden', !show);
+toggleAllMarkersVisibility(show) {
+            this.mainTextArea.querySelectorAll('.marker').forEach(marker => {
+                if (show) {
+                    // ■ マーカーを再表示する（絵文字に戻す）
+                    // 以前の状態（表示中か非表示か）に関わらず、強制的に非表示（絵文字）状態に戻します。
+                    this.unrevealMarker(marker);
+                } else {
+                    // ■ マーカーを一時的に解除する（ただのテキストにする）
+                    // 表示中（黄色い背景）のクラスを確実に消してから、
+                    marker.classList.remove('reveal');
+                    // 中身を元のテキストに戻します。
+                    marker.textContent = marker.dataset.originalText;
+                    // letter-spacingも元に戻して自然な見た目にします。
+                    marker.style.letterSpacing = 'normal';
+                }
+            });
+            
+            // unrevealMarkerで絵文字に戻した際にletter-spacingがリセットされる場合があるので、
+            // show=trueの時だけ明示的に再設定します。
+            if (show) {
+                this.mainTextArea.querySelectorAll('.marker').forEach(marker => {
+                    marker.style.letterSpacing = '0.05em';
+                });
+            }
         }
 
         copyCurrentDocRules() {
