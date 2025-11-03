@@ -3,132 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デジタル・マーカー式暗記ツール v2.2</title>
+    <title>デジタル・マーカー式暗記ツール v3.0</title>
     <style>
         :root {
-            --bg-color: #f4f4f9;
-            --main-bg: #ffffff;
-            --rule-bg: #eef1f5;
-            --text-color: #333;
-            --border-color: #d1d9e6;
-            --header-bg: #3c4a6a;
-            --header-text: #ffffff;
-            --button-bg: #4a6fa5;
-            --highlight-bg: #fffde7;
-            --speech-highlight-bg: #fdff32;
+            --bg-color: #f4f4f9; --main-bg: #ffffff; --rule-bg: #eef1f5;
+            --text-color: #333; --border-color: #d1d9e6; --header-bg: #2d3748;
+            --header-text: #ffffff; --button-bg: #4a5568; --button-hover-bg: #2d3748;
+            --highlight-bg: #fffde7; --speech-highlight-bg: #fdff32;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
-            margin: 0;
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
+            margin: 0; background-color: var(--bg-color); color: var(--text-color);
+            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
         header {
-            background-color: var(--header-bg);
-            color: var(--header-text);
-            padding: 10px 15px;
-            display: flex;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            flex-shrink: 0;
-            z-index: 10;
+            background-color: var(--header-bg); color: var(--header-text); padding: 10px 15px;
+            display: flex; align-items: center; flex-wrap: wrap; gap: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); flex-shrink: 0; z-index: 10;
         }
-        header h1 {
-            font-size: 1.1em;
-            margin: 0;
-        }
-        .control-group {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
+        header h1 { font-size: 1.1em; margin: 0; }
+        .control-group { display: flex; align-items: center; gap: 5px; }
         select, input, button {
-            font-size: 14px;
-            padding: 5px 10px;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            background-color: #f0f8ff;
+            font-size: 14px; padding: 6px 12px; border-radius: 5px;
+            border: 1px solid #718096; background-color: #edf2f7; color: #2d3748;
         }
         button {
-            background-color: var(--button-bg);
-            color: var(--header-text);
-            cursor: pointer;
-            border-color: transparent;
-            transition: background-color 0.2s;
+            background-color: var(--button-bg); color: var(--header-text); cursor: pointer;
+            border-color: transparent; transition: background-color 0.2s;
         }
-        button:hover {
-            background-color: #5a85c8;
-        }
+        button:hover { background-color: var(--button-hover-bg); }
         main {
-            display: flex;
-            flex-direction: column;
-            flex-grow: 1;
-            padding: 15px;
-            gap: 15px;
-            overflow: hidden;
-            position: relative;
+            display: flex; flex-direction: column; flex-grow: 1;
+            padding: 15px; gap: 15px; overflow: hidden; position: relative;
         }
         .panel {
-            background-color: var(--main-bg);
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            border: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
+            background-color: var(--main-bg); border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--border-color);
+            display: flex; flex-direction: column; overflow: hidden;
         }
-        .panel.main { flex-grow: 1; }
-        .panel.rules { flex-shrink: 0; height: 150px; transition: height 0.3s ease; }
-        .panel.rules.closed { height: 40px; }
+        .panel.main { flex-grow: 1; position: relative; }
+        .panel.manager { flex-shrink: 0; height: 200px; transition: height 0.3s ease; }
+        .panel.manager.closed { height: 42px; }
         .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 15px;
-            border-bottom: 1px solid var(--border-color);
-            background-color: #f9fafb;
-            cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 10px 15px; border-bottom: 1px solid var(--border-color);
+            background-color: #f9fafb; cursor: pointer; user-select: none;
         }
         .panel-header h2 { font-size: 1em; margin: 0; }
-        textarea, #main-text-area {
-            flex-grow: 1;
-            border: none;
-            padding: 15px;
-            font-size: 18px;
-            line-height: 1.8;
-            resize: none;
-            outline: none;
-            background-color: transparent;
-            font-family: inherit;
+        #main-text-area {
+            flex-grow: 1; padding: 15px; font-size: 18px; line-height: 1.8;
+            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
         }
-        #main-text-area { white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; }
-        #rules-text-area { background-color: var(--rule-bg); font-family: monospace; font-size: 13px; line-height: 1.6; }
+        #marker-manager-list { overflow-y: auto; padding: 10px; }
+        .manager-item {
+            display: flex; align-items: center; padding: 8px;
+            border-bottom: 1px solid #e2e8f0; font-size: 14px;
+            cursor: pointer; transition: background-color 0.2s;
+        }
+        .manager-item:hover { background-color: #f7fafc; }
+        .manager-item-icon { font-size: 1.2em; min-width: 30px; text-align: center; }
+        .manager-item-text { flex-grow: 1; font-weight: bold; color: #2d3748; }
+        .manager-item-context { color: #718096; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .manager-item-delete {
+            background: none; border: none; font-size: 1.2em; cursor: pointer;
+            color: #a0aec0; transition: color 0.2s; padding: 5px;
+        }
+        .manager-item-delete:hover { color: #e53e3e; }
+
         .marker { cursor: pointer; border-radius: 3px; user-select: none; letter-spacing: 0.05em; }
         .marker.reveal { background-color: var(--highlight-bg); letter-spacing: normal; }
-        .speech-highlight { background-color: var(--speech-highlight-bg); border-radius: 3px; }
-        
+        .marker.jump-highlight { animation: jump-highlight 1.5s ease; }
+        @keyframes jump-highlight { 0% { background-color: #f6e05e; } 100% { background-color: transparent; } }
+
         #mini-palette {
-            position: absolute;
-            background-color: #333;
-            padding: 8px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-            display: none;
-            gap: 5px;
-            z-index: 100;
+            position: absolute; background-color: #333; padding: 8px; border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: none; gap: 5px; z-index: 100;
         }
         .mini-palette-item {
             width: 32px; height: 32px; cursor: pointer; border: 2px solid transparent; border-radius: 6px;
             display: flex; justify-content: center; align-items: center; font-size: 22px; transition: transform 0.1s;
         }
         .mini-palette-item:hover { transform: scale(1.15); background-color: #555; }
-        
+
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.6); z-index: 1000;
@@ -136,26 +92,32 @@
         }
         .modal-content {
             background-color: #fff; padding: 20px; border-radius: 8px;
-            width: 80%; max-width: 600px; display: flex;
+            width: 80%; max-width: 700px; display: flex;
             flex-direction: column; gap: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
         }
-        .modal-content textarea { height: 40vh; border: 1px solid #ccc; }
+        .modal-content textarea { height: 40vh; border: 1px solid #ccc; font-family: monospace; }
         .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+        .modal-choices { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        .modal-choices button { padding: 10px 20px; font-size: 16px; }
     </style>
 </head>
 <body>
     <header>
-        <h1>マーカー式暗記ツール v2.2</h1>
+        <h1>マーカー式暗記ツール v3.0</h1>
         <div class="control-group">
             <select id="doc-select"></select>
-            <button id="rename-doc-btn">📝</button>
+            <button id="rename-doc-btn" title="タイトルを編集">📝</button>
+        </div>
+        <div class="control-group">
+            <span id="char-counter" style="min-width: 100px;">文字数: 0</span>
         </div>
         <div class="control-group">
             <button id="speech-btn">▶ 読み上げ</button>
-            <select id="voice-select"></select>
+            <select id="voice-select" style="display:none;"></select>
         </div>
         <div class="control-group">
-            <button id="import-export-btn">📥📤 データ同期</button>
+            <button id="copy-text-btn">📄 原文コピー</button>
+            <button id="sync-btn">🔄 全データ同期</button>
         </div>
     </header>
 
@@ -164,71 +126,74 @@
         <div class="panel main">
             <div id="main-text-area" contenteditable="true" spellcheck="false"></div>
         </div>
-        <div class="panel rules" id="rules-panel">
-            <div class="panel-header" id="rules-header">
-                <h2>マーカーのルール (自動生成)</h2>
-                <span id="toggle-rules-btn">▼ 閉じる</span>
+        <div class="panel manager" id="manager-panel">
+            <div class="panel-header" id="manager-header">
+                <h2>マーカー・マネージャー</h2>
+                <span id="toggle-manager-btn">▼ 閉じる</span>
             </div>
-            <textarea id="rules-text-area" readonly></textarea>
+            <div id="marker-manager-list"></div>
         </div>
     </main>
     
     <div id="modal-overlay">
-        <div class="modal-content" id="io-modal">
-            <h3 id="modal-title">データのエクスポート</h3>
-            <p id="modal-desc">以下のテキストを全てコピーし、他のデバイスでインポートしてください。</p>
+        <div class="modal-content" id="sync-modal">
+            <h3 id="modal-title"></h3>
+            <div id="modal-choices" class="modal-choices">
+                 <button id="export-choice-btn">エクスポート (バックアップ作成)</button>
+                 <button id="import-choice-btn">インポート (データ復元)</button>
+            </div>
+            <p id="modal-desc"></p>
             <textarea id="io-textarea"></textarea>
             <div class="modal-buttons">
-                <button id="copy-io-btn">クリップボードにコピー</button>
+                <button id="io-action-btn"></button>
                 <button id="close-modal-btn">閉じる</button>
             </div>
         </div>
     </div>
 
     <script>
-    class MarkerToolV2_2 {
+    class MarkerToolV3 {
         constructor() {
-            // DOM
+            // DOM Elements
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
             this.mainTextArea = document.getElementById('main-text-area');
-            this.rulesTextArea = document.getElementById('rules-text-area');
+            this.markerManagerList = document.getElementById('marker-manager-list');
+            this.charCounter = document.getElementById('char-counter');
             this.speechBtn = document.getElementById('speech-btn');
             this.voiceSelect = document.getElementById('voice-select');
-            this.rulesPanel = document.getElementById('rules-panel');
-            this.rulesHeader = document.getElementById('rules-header');
-            this.toggleRulesBtn = document.getElementById('toggle-rules-btn');
+            this.managerPanel = document.getElementById('manager-panel');
+            this.managerHeader = document.getElementById('manager-header');
+            this.toggleManagerBtn = document.getElementById('toggle-manager-btn');
             this.miniPalette = document.getElementById('mini-palette');
+            this.copyTextBtn = document.getElementById('copy-text-btn');
+            this.syncBtn = document.getElementById('sync-btn');
+            
+            // Modal Elements
             this.modalOverlay = document.getElementById('modal-overlay');
             this.modalTitle = document.getElementById('modal-title');
             this.modalDesc = document.getElementById('modal-desc');
+            this.modalChoices = document.getElementById('modal-choices');
             this.ioTextarea = document.getElementById('io-textarea');
-            this.copyIoBtn = document.getElementById('copy-io-btn');
+            this.ioActionBtn = document.getElementById('io-action-btn');
             this.closeModalBtn = document.getElementById('close-modal-btn');
-            this.importExportBtn = document.getElementById('import-export-btn');
-
-            // パレット
+            this.exportChoiceBtn = document.getElementById('export-choice-btn');
+            this.importChoiceBtn = document.getElementById('import-choice-btn');
+            
+            // Marker Styles
             this.markerStyles = [
-                { type: 'E', value: 'gray', display: '⬜' },
-                { type: 'E', value: '🐞' }, { type: 'E', value: '🐙' },
-                { type: 'E', value: '😀' }, { type: 'E', value: '🐸' },
-                { type: 'E', value: '👽' }, { type: 'E', value: '🧟‍♀️' },
-                { type: 'E', value: '🥶' }, { type: 'E', value: '🌏' },
-                { type: 'E', value: '💩' }, { type: 'E', value: '🍇' },
-                { type: 'E', value: '🏀' }
+                { type: 'E', value: '⬜' }, { type: 'E', value: '🐞' }, { type: 'E', value: '🐙' },
+                { type: 'E', value: '😀' }, { type: 'E', value: '🐸' }, { type: 'E', value: '👽' },
+                { type: 'E', value: '🧟‍♀️' }, { type: 'E', value: '🥶' }, { type: 'E', value: '🌏' },
+                { type: 'E', value: '💩' }, { type: 'E', value: '🍇' }, { type: 'E', value: '🏀' }
             ];
 
-            // 状態
+            // App State
             this.state = {
-                anchorLength: 7,
-                lastTap: 0,
-                lastClickedMarker: null,
+                anchorLength: 10,
                 isSpeaking: false,
                 voices: [],
-                appData: {
-                    documents: [],
-                    rules: ''
-                },
+                appData: {},
                 currentDocIndex: 0,
                 selectionRange: null,
             };
@@ -248,28 +213,30 @@
 
         bindEvents() {
             this.mainTextArea.addEventListener('mouseup', (e) => this.handleSelection(e));
+            this.mainTextArea.addEventListener('input', () => this.updateCharCount());
+            document.addEventListener('click', (e) => {
+                if (!this.miniPalette.contains(e.target) && !this.mainTextArea.contains(e.target)) {
+                    this.hideMiniPalette();
+                }
+            });
+            
             this.docSelect.addEventListener('change', (e) => this.switchDocument(parseInt(e.target.value, 10)));
             this.renameDocBtn.addEventListener('click', () => this.renameDocument());
-            this.mainTextArea.addEventListener('click', (e) => this.handleMarkerClick(e));
-            document.addEventListener('click', (e) => { // Hide mini palette on outside click
-                if (!this.miniPalette.contains(e.target)) this.hideMiniPalette();
-            });
-            this.rulesHeader.addEventListener('click', () => this.toggleRulesPanel());
-            this.speechBtn.addEventListener('click', () => this.toggleSpeech());
-            this.importExportBtn.addEventListener('click', () => this.openExportModal());
-            this.closeModalBtn.addEventListener('click', () => this.closeIoModal());
-            this.copyIoBtn.addEventListener('click', () => this.handleIoAction());
+            this.managerHeader.addEventListener('click', () => this.toggleManagerPanel());
+            
+            this.copyTextBtn.addEventListener('click', () => this.copyPlainText());
+            this.syncBtn.addEventListener('click', () => this.openSyncModal());
+            this.exportChoiceBtn.addEventListener('click', () => this.setupExportModal());
+            this.importChoiceBtn.addEventListener('click', () => this.setupImportModal());
+            this.closeModalBtn.addEventListener('click', () => this.closeSyncModal());
+            this.ioActionBtn.addEventListener('click', () => this.handleIoAction());
         }
 
         createMiniPalette() {
             this.markerStyles.forEach(style => {
                 const item = document.createElement('div');
                 item.className = 'mini-palette-item';
-                if (style.display) {
-                    item.textContent = style.display;
-                } else {
-                    item.textContent = style.value;
-                }
+                item.textContent = style.value;
                 item.addEventListener('mousedown', (e) => {
                     e.preventDefault();
                     this.createMarkerFromPalette(style);
@@ -279,13 +246,15 @@
         }
         
         handleSelection(e) {
+            // (v2.2 logic remains)
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.isCollapsed || !selection.toString().trim()) {
                 this.hideMiniPalette();
                 return;
             }
             this.state.selectionRange = selection.getRangeAt(0).cloneRange();
-            this.showMiniPalette(e.clientX, e.clientY);
+            const rect = this.state.selectionRange.getBoundingClientRect();
+            this.showMiniPalette(rect.left + window.scrollX, rect.top + window.scrollY);
         }
 
         showMiniPalette(x, y) {
@@ -298,11 +267,11 @@
             this.miniPalette.style.display = 'none';
             this.state.selectionRange = null;
         }
-        
+
         createMarkerFromPalette(style) {
             if (!this.state.selectionRange) return;
 
-            const hiddenText = this.state.selectionRange.toString();
+            const hiddenText = this.state.selectionRange.toString().trim();
             const preRange = document.createRange();
             preRange.setStart(this.state.selectionRange.startContainer, 0);
             preRange.setEnd(this.state.selectionRange.startContainer, this.state.selectionRange.startOffset);
@@ -314,7 +283,7 @@
             const suffix = postRange.toString().slice(0, this.state.anchorLength);
 
             const styleString = `%% ${style.type}${style.value}`;
-            const rule = `${this.state.currentDocIndex} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText.trim()} ${styleString}`;
+            const rule = `${this.state.currentDocIndex} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText} ${styleString}`;
             
             const currentRules = this.state.appData.rules.split('\n').filter(Boolean);
             currentRules.push(rule);
@@ -325,56 +294,187 @@
             window.getSelection().removeAllRanges();
         }
 
-        handleMarkerClick(e) { /* (v2.1から変更なし) */ }
-        removeMarker(markerElement) { /* (v2.1から一部修正) */ }
-        applyRules() { /* (v2.1から一部修正) */ }
-        
-        // --- データ同期 & タイトル編集 ---
-        
-        openExportModal() {
-            this.modalTitle.textContent = "データのエクスポート";
-            this.modalDesc.textContent = "以下のテキストを全てコピーし、他のデバイスでインポートしてください。";
-            this.ioTextarea.value = JSON.stringify(this.state.appData, null, 2);
-            this.ioTextarea.readOnly = true;
-            this.copyIoBtn.textContent = "クリップボードにコピー";
-            this.modalOverlay.style.display = 'flex';
+        applyRules() {
+            const originalText = this.getOriginalText();
+            this.state.appData.documents[this.state.currentDocIndex].content = originalText;
+            
+            this.mainTextArea.innerHTML = '';
+            
+            let segments = [{ text: originalText, type: 'text' }];
+
+            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
+            const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
+            
+            targetRules.forEach(rule => {
+                try {
+                    const ruleParts = rule.split(' -> ');
+                    const hiddenTextAndStyle = ruleParts[1].split(' %% ');
+                    const hiddenText = hiddenTextAndStyle[0];
+                    const styleString = hiddenTextAndStyle[1];
+                    const anchorParts = ruleParts[0].split(' :: ')[1].split('...');
+                    const prefix = anchorParts[0];
+                    const suffix = anchorParts[1];
+                    const fullAnchor = prefix + hiddenText + suffix;
+                    
+                    for (let i = 0; i < segments.length; i++) {
+                        if (segments[i].type === 'text') {
+                            const index = segments[i].text.indexOf(fullAnchor);
+                            if (index > -1) {
+                                const before = segments[i].text.substring(0, index + prefix.length);
+                                const after = segments[i].text.substring(index + prefix.length + hiddenText.length);
+                                segments.splice(i, 1, { text: before, type: 'text' }, { text: hiddenText, type: 'marker', style: styleString, fullRule: rule }, { text: after, type: 'text' });
+                                break;
+                            }
+                        }
+                    }
+                } catch(e) { /* ignore parse error */ }
+            });
+
+            segments.forEach(seg => {
+                if (seg.type === 'text') {
+                    this.mainTextArea.appendChild(document.createTextNode(seg.text));
+                } else if(seg.type === 'marker') {
+                    const markerSpan = document.createElement('span');
+                    markerSpan.className = 'marker';
+                    markerSpan.dataset.originalText = seg.text;
+                    markerSpan.dataset.style = seg.style;
+                    markerSpan.dataset.fullRule = seg.fullRule;
+                    
+                    const type = seg.style.charAt(0);
+                    const value = seg.style.substring(1);
+                    if (type === 'E') {
+                        markerSpan.textContent = value.repeat(seg.text.length);
+                    }
+                    this.mainTextArea.appendChild(markerSpan);
+                }
+            });
+
+            this.mainTextArea.innerHTML = this.mainTextArea.innerHTML.replace(/\n/g, '<br>');
+            this.renderMarkerManager();
+            this.updateCharCount();
+            this.saveState();
         }
 
-        openImportModal() {
-             this.modalTitle.textContent = "データのインポート";
-             this.modalDesc.textContent = "他のデバイスからコピーしたデータをここに貼り付けてください。現在のデータは上書きされます。";
-             this.ioTextarea.value = '';
-             this.ioTextarea.readOnly = false;
-             this.copyIoBtn.textContent = "読み込む";
-             this.modalOverlay.style.display = 'flex';
+        renderMarkerManager() {
+            this.markerManagerList.innerHTML = '';
+            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
+            const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
+
+            if(targetRules.length === 0) {
+                this.markerManagerList.innerHTML = '<p style="text-align:center; color:#718096; padding: 20px;">マーカーはありません。</p>';
+                return;
+            }
+
+            targetRules.forEach(rule => {
+                const item = document.createElement('div');
+                item.className = 'manager-item';
+                item.dataset.fullRule = rule;
+
+                const ruleParts = rule.split(' -> ');
+                const hiddenTextAndStyle = ruleParts[1].split(' %% ');
+                const hiddenText = hiddenTextAndStyle[0];
+                const styleString = hiddenTextAndStyle[1];
+                const anchorText = ruleParts[0].split(' :: ')[1];
+
+                const icon = styleString.substring(1).repeat(1);
+                
+                item.innerHTML = `
+                    <div class="manager-item-icon">${icon}</div>
+                    <div class="manager-item-details">
+                        <div class="manager-item-text">${hiddenText}</div>
+                        <div class="manager-item-context">${anchorText.replace('...', ' ... ')}</div>
+                    </div>
+                    <button class="manager-item-delete" title="このマーカーを削除">🗑️</button>
+                `;
+
+                item.querySelector('.manager-item-delete').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.removeRule(rule);
+                });
+                
+                item.addEventListener('click', () => this.jumpToMarker(rule));
+
+                this.markerManagerList.appendChild(item);
+            });
         }
         
-        closeIoModal() {
-            this.modalOverlay.style.display = 'none';
+        removeRule(ruleToRemove) {
+            const allRules = this.state.appData.rules.split('\n');
+            const newRules = allRules.filter(rule => rule !== ruleToRemove);
+            this.state.appData.rules = newRules.join('\n');
+            this.applyRules();
         }
+
+        jumpToMarker(rule) {
+            const markerInDom = this.mainTextArea.querySelector(`.marker[data-full-rule="${rule}"]`);
+            if (markerInDom) {
+                markerInDom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                markerInDom.classList.remove('jump-highlight'); // remove for re-trigger
+                void markerInDom.offsetWidth; // trigger reflow
+                markerInDom.classList.add('jump-highlight');
+            }
+        }
+        
+        // --- Data Sync and Management ---
+
+        copyPlainText() {
+            const text = this.getOriginalText();
+            navigator.clipboard.writeText(text).then(() => {
+                alert("原文をクリップボードにコピーしました。");
+            });
+        }
+        
+        openSyncModal() {
+            this.modalOverlay.style.display = 'flex';
+            this.modalTitle.textContent = "全データ同期";
+            this.modalChoices.style.display = 'flex';
+            this.modalDesc.innerHTML = '';
+            this.ioTextarea.style.display = 'none';
+            this.ioActionBtn.style.display = 'none';
+        }
+
+        setupExportModal() {
+            this.modalChoices.style.display = 'none';
+            this.modalDesc.innerHTML = '<strong>このテキストがあなたの全データです。</strong><br>これを全てコピーし、安全な場所に保管するか、他のデバイスでインポートしてください。';
+            this.ioTextarea.value = JSON.stringify(this.state.appData, null, 2);
+            this.ioTextarea.readOnly = true;
+            this.ioTextarea.style.display = 'block';
+            this.ioActionBtn.textContent = "クリップボードにコピー";
+            this.ioActionBtn.style.display = 'block';
+        }
+        
+        setupImportModal() {
+            this.modalChoices.style.display = 'none';
+            this.modalDesc.innerHTML = '<strong>注意：現在のデータは上書きされます。</strong><br>バックアップしたデータをここに貼り付けて、「読み込む」を押してください。';
+            this.ioTextarea.value = '';
+            this.ioTextarea.readOnly = false;
+            this.ioTextarea.style.display = 'block';
+            this.ioActionBtn.textContent = "データを読み込む";
+            this.ioActionBtn.style.display = 'block';
+        }
+
+        closeSyncModal() { this.modalOverlay.style.display = 'none'; }
         
         handleIoAction() {
-            if (this.copyIoBtn.textContent.includes('コピー')) {
+            if (this.ioActionBtn.textContent.includes('コピー')) {
                 navigator.clipboard.writeText(this.ioTextarea.value).then(() => {
-                    this.copyIoBtn.textContent = "コピーしました！";
-                    setTimeout(() => this.copyIoBtn.textContent = "クリップボードにコピー", 2000);
+                    this.ioActionBtn.textContent = "コピーしました！";
+                    setTimeout(() => this.ioActionBtn.textContent = "クリップボードにコピー", 2000);
                 });
             } else { // Import
+                if(!confirm("本当に現在のデータを上書きしますか？この操作は元に戻せません。")) return;
                 try {
                     const newData = JSON.parse(this.ioTextarea.value);
-                    if (newData.documents && typeof newData.rules === 'string') {
+                    if (newData.documents && Array.isArray(newData.documents) && typeof newData.rules === 'string') {
                         this.state.appData = newData;
-                        this.state.currentDocIndex = 0; // Reset to first doc
+                        this.state.currentDocIndex = 0;
                         this.saveState();
                         this.updateDocSelect();
                         this.updateDocumentView();
-                        this.closeIoModal();
-                    } else {
-                        alert("データの形式が正しくありません。");
-                    }
-                } catch (e) {
-                    alert("データの読み込みに失敗しました。形式を確認してください。");
-                }
+                        this.closeSyncModal();
+                        alert("データのインポートに成功しました。");
+                    } else { throw new Error("Invalid data structure"); }
+                } catch (e) { alert("データの読み込みに失敗しました。形式が正しくありません。"); }
             }
         }
         
@@ -388,8 +488,13 @@
             }
         }
 
-        // --- 状態管理 & UI更新 ---
-
+        // --- State and UI Updates ---
+        
+        updateCharCount() {
+            const count = this.getOriginalText().length;
+            this.charCounter.textContent = `文字数: ${count}`;
+        }
+        
         updateDocSelect() {
             this.docSelect.innerHTML = '';
             this.state.appData.documents.forEach((doc, index) => {
@@ -402,21 +507,20 @@
         }
 
         switchDocument(docIndex) {
-            if (this.state.isSpeaking) this.toggleSpeech();
             this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
             this.state.currentDocIndex = docIndex;
             this.updateDocumentView();
-            this.saveState();
         }
 
         updateDocumentView() {
             this.docSelect.value = this.state.currentDocIndex;
             const currentDoc = this.state.appData.documents[this.state.currentDocIndex];
             this.mainTextArea.textContent = currentDoc.content;
-            this.applyRules();
+            this.applyRules(); // This will also save state
         }
         
         getOriginalText() {
+            // (v2.2 logic remains)
             const tempDiv = document.createElement('div');
             this.mainTextArea.childNodes.forEach(node => {
                 if (node.nodeType === Node.TEXT_NODE) {
@@ -435,24 +539,24 @@
             if (this.state.appData.documents[this.state.currentDocIndex]) {
                  this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
             }
-            localStorage.setItem('markerToolState_v2_2', JSON.stringify(this.state.appData));
+            localStorage.setItem('markerToolState_v3_0', JSON.stringify(this.state.appData));
         }
 
         loadState() {
-            const savedState = localStorage.getItem('markerToolState_v2_2');
+            const savedState = localStorage.getItem('markerToolState_v3_0');
             if (savedState) {
-                this.state.appData = JSON.parse(savedState);
-                // データ構造の互換性チェック
-                if (!this.state.appData.documents || !Array.isArray(this.state.appData.documents)) {
-                    this.resetData();
-                }
-            } else {
-                this.resetData();
-            }
+                try {
+                    const data = JSON.parse(savedState);
+                    if (data.documents && Array.isArray(data.documents)) {
+                        this.state.appData = data;
+                    } else { this.resetData(); }
+                } catch(e) { this.resetData(); }
+            } else { this.resetData(); }
+
             // Ensure doc count is correct
             while(this.state.appData.documents.length < this.DOC_COUNT) {
                 const newIndex = this.state.appData.documents.length + 1;
-                this.state.appData.documents.push({ title: `文章 ${newIndex}`, content: `これは「文章 ${newIndex}」です。` });
+                this.state.appData.documents.push({ title: `文章 ${newIndex}`, content: `` });
             }
             this.state.appData.documents = this.state.appData.documents.slice(0, this.DOC_COUNT);
         }
@@ -460,93 +564,17 @@
         resetData() {
             this.state.appData = { documents: [], rules: '' };
             for(let i=1; i<=this.DOC_COUNT; i++) {
-                this.state.appData.documents.push({ title: `文章 ${i}`, content: `これは「文章 ${i}」です。` });
+                this.state.appData.documents.push({ title: `文章 ${i}`, content: `` });
             }
         }
         
-        // --- 以下のメソッドはv2.1から流用または微修正 ---
-        
-        handleMarkerClick(e) {
-            const marker = e.target.closest('.marker');
-            if (!marker) { this.clearAllReveals(); return; }
-            const currentTime = new Date().getTime();
-            if (currentTime - this.state.lastTap < 500 && this.state.lastClickedMarker === marker) {
-                this.removeMarker(marker);
-                this.state.lastTap = 0;
-            } else {
-                this.clearAllReveals(marker);
-                this.revealMarker(marker);
-                this.state.lastTap = currentTime;
-                this.state.lastClickedMarker = marker;
-            }
-        }
-        revealMarker(marker) { marker.classList.add('reveal'); marker.textContent = marker.dataset.originalText; }
-        unrevealMarker(marker) {
-            marker.classList.remove('reveal');
-            const style = marker.dataset.style;
-            if (style.startsWith('E')) {
-                marker.textContent = style.substring(1).repeat(marker.dataset.originalText.length);
-            }
-        }
-        clearAllReveals(exceptThisOne = null) {
-            this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => {
-                if (m !== exceptThisOne) this.unrevealマーカー(m);
-            });
-        }
-        removeMarker(marker) { /* ... 堅牢な実装が必要 ... */ }
-        applyRules() {
-            const originalText = this.getOriginalText();
-            this.state.appData.documents[this.state.currentDocIndex].content = originalText;
-            this.rulesTextArea.value = this.state.appData.rules;
-            this.mainTextArea.innerHTML = '';
-            
-            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
-            const targetRules = allRules.filter(line => line.startsWith(this.state.currentDocIndex + ' ::'));
-
-            let segments = [{ text: originalText, type: 'text' }];
-            // (v2.1のロジックを流用)
-            // ...
-            
-            // 画面への描画
-            this.mainTextArea.innerHTML = segments.map(seg => {
-                if (seg.type === 'text') {
-                    return seg.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                } else {
-                    const style = seg.style;
-                    const type = style.charAt(0);
-                    const value = style.substring(1);
-                    let displayContent = '';
-                    if (type === 'E') {
-                        if (value === 'gray') {
-                             displayContent = '⬜'.repeat(seg.text.length);
-                        } else {
-                             displayContent = value.repeat(seg.text.length);
-                        }
-                    }
-                    return `<span class="marker" data-original-text="${seg.text.replace(/"/g, '&quot;')}" data-style="${style}">${displayContent}</span>`;
-                }
-            }).join('').replace(/\n/g, '<br>');
-            this.saveState();
-        }
-
-        toggleRulesPanel() { /* (v2.1から変更なし) */ }
-        initSpeech() { /* (v2.1から変更なし) */ }
-        toggleSpeech() { /* (v2.1から変更なし) */ }
-        clearHighlight() { /* (v2.1から変更なし) */ }
-        highlightText() { /* (v2.1から変更なし) */ }
+        // --- Other methods (mostly from v2.2) ---
+        toggleManagerPanel() { this.managerPanel.classList.toggle('closed'); this.toggleManagerBtn.textContent = this.managerPanel.classList.contains('closed') ? '▲ 開く' : '▼ 閉じる'; }
+        initSpeech() { /* Dummy */ }
+        toggleSpeech() { alert("読み上げ機能は現在調整中です。"); }
     }
 
-    new MarkerToolV2_2();
-
-    // 以下の部分で、未実装の関数をダミーで定義しています
-    // 実際の実装では、これらの関数をv2.1から移植する必要があります
-    MarkerToolV2_2.prototype.removeMarker = MarkerToolV2_2.prototype.removeMarker || function(marker) { console.log('removeMarker called for', marker.dataset.originalText); /* v2.1のロジックをここに移植 */};
-    MarkerToolV2_2.prototype.toggleRulesPanel = MarkerToolV2_2.prototype.toggleRulesPanel || function() { this.rulesPanel.classList.toggle('closed'); };
-    MarkerToolV2_2.prototype.initSpeech = MarkerToolV2_2.prototype.initSpeech || function() {};
-    MarkerToolV2_2.prototype.toggleSpeech = MarkerToolV2_2.prototype.toggleSpeech || function() { alert('読み上げ機能は現在開発中です。'); };
-    MarkerToolV2_2.prototype.clearHighlight = MarkerToolV2_2.prototype.clearHighlight || function() {};
-    MarkerToolV2_2.prototype.highlightText = MarkerToolV2_2.prototype.highlightText || function() {};
-
+    new MarkerToolV3();
     </script>
 </body>
 </html>
