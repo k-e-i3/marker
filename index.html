@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デジタル・マーカー式暗記ツール v3.0</title>
+    <title>デジタル・マーカー式暗記ツール v3.2</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff; --rule-bg: #eef1f5;
@@ -32,6 +32,7 @@
             border-color: transparent; transition: background-color 0.2s;
         }
         button:hover { background-color: var(--button-hover-bg); }
+        label { display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; }
         main {
             display: flex; flex-direction: column; flex-grow: 1;
             padding: 15px; gap: 15px; overflow: hidden; position: relative;
@@ -42,7 +43,7 @@
             display: flex; flex-direction: column; overflow: hidden;
         }
         .panel.main { flex-grow: 1; position: relative; }
-        .panel.manager { flex-shrink: 0; height: 200px; transition: height 0.3s ease; }
+        .panel.manager { flex-shrink: 0; height: 200px; transition: height 0.3s ease, opacity 0.3s; }
         .panel.manager.closed { height: 42px; }
         .panel-header {
             display: flex; justify-content: space-between; align-items: center;
@@ -50,9 +51,15 @@
             background-color: #f9fafb; cursor: pointer; user-select: none;
         }
         .panel-header h2 { font-size: 1em; margin: 0; }
+        .panel-header-controls { display: flex; align-items: center; gap: 10px; }
         #main-text-area {
             flex-grow: 1; padding: 15px; font-size: 18px; line-height: 1.8;
             white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
+        }
+        .markers-hidden #main-text-area .marker {
+            background-color: transparent !important;
+            color: var(--text-color) !important;
+            letter-spacing: normal !important;
         }
         #marker-manager-list { overflow-y: auto; padding: 10px; }
         .manager-item {
@@ -99,11 +106,13 @@
         .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; }
         .modal-choices { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
         .modal-choices button { padding: 10px 20px; font-size: 16px; }
+
+        .speech-highlight { background-color: var(--speech-highlight-bg); border-radius: 3px; }
     </style>
 </head>
 <body>
     <header>
-        <h1>マーカー式暗記ツール v3.0</h1>
+        <h1>マーカー式暗記ツール v3.2</h1>
         <div class="control-group">
             <select id="doc-select"></select>
             <button id="rename-doc-btn" title="タイトルを編集">📝</button>
@@ -112,8 +121,11 @@
             <span id="char-counter" style="min-width: 100px;">文字数: 0</span>
         </div>
         <div class="control-group">
+            <label><input type="checkbox" id="toggle-markers-cb" checked> マーカー表示</label>
+        </div>
+        <div class="control-group">
             <button id="speech-btn">▶ 読み上げ</button>
-            <select id="voice-select" style="display:none;"></select>
+            <select id="voice-select"></select>
         </div>
         <div class="control-group">
             <button id="copy-text-btn">📄 原文コピー</button>
@@ -121,7 +133,7 @@
         </div>
     </header>
 
-    <main>
+    <main id="main-container">
         <div id="mini-palette"></div>
         <div class="panel main">
             <div id="main-text-area" contenteditable="true" spellcheck="false"></div>
@@ -129,7 +141,11 @@
         <div class="panel manager" id="manager-panel">
             <div class="panel-header" id="manager-header">
                 <h2>マーカー・マネージャー</h2>
-                <span id="toggle-manager-btn">▼ 閉じる</span>
+                <div class="panel-header-controls">
+                    <button id="copy-rules-btn" title="この文章のマーカールールをコピー">コピー</button>
+                    <button id="import-rules-btn" title="この文章にマーカールールをインポート">インポート</button>
+                    <span id="toggle-manager-btn">▼ 閉じる</span>
+                </div>
             </div>
             <div id="marker-manager-list"></div>
         </div>
@@ -152,7 +168,7 @@
     </div>
 
     <script>
-    class MarkerToolV3 {
+    class MarkerToolV3_2 {
         constructor() {
             // DOM Elements
             this.docSelect = document.getElementById('doc-select');
@@ -168,8 +184,10 @@
             this.miniPalette = document.getElementById('mini-palette');
             this.copyTextBtn = document.getElementById('copy-text-btn');
             this.syncBtn = document.getElementById('sync-btn');
-            
-            // Modal Elements
+            this.toggleMarkersCb = document.getElementById('toggle-markers-cb');
+            this.mainContainer = document.getElementById('main-container');
+            this.copyRulesBtn = document.getElementById('copy-rules-btn');
+            this.importRulesBtn = document.getElementById('import-rules-btn');
             this.modalOverlay = document.getElementById('modal-overlay');
             this.modalTitle = document.getElementById('modal-title');
             this.modalDesc = document.getElementById('modal-desc');
@@ -180,22 +198,16 @@
             this.exportChoiceBtn = document.getElementById('export-choice-btn');
             this.importChoiceBtn = document.getElementById('import-choice-btn');
             
-            // Marker Styles
             this.markerStyles = [
-                { type: 'E', value: '⬜' }, { type: 'E', value: '🐞' }, { type: 'E', value: '🐙' },
-                { type: 'E', value: '😀' }, { type: 'E', value: '🐸' }, { type: 'E', value: '👽' },
-                { type: 'E', value: '🧟‍♀️' }, { type: 'E', value: '🥶' }, { type: 'E', value: '🌏' },
-                { type: 'E', value: '💩' }, { type: 'E', value: '🍇' }, { type: 'E', value: '🏀' }
+                { type: 'E', value: '🐞' }, { type: 'E', value: '🐙' }, { type: 'E', value: '😀' },
+                { type: 'E', value: '🐸' }, { type: 'E', value: '👽' }, { type: 'E', value: '🧟‍♀️' },
+                { type: 'E', value: '🥶' }, { type: 'E', value: '🌏' }, { type: 'E', value: '💩' },
+                { type: 'E', value: '🍇' }, { type: 'E', value: '🏀' }
             ];
 
-            // App State
             this.state = {
-                anchorLength: 10,
-                isSpeaking: false,
-                voices: [],
-                appData: {},
-                currentDocIndex: 0,
-                selectionRange: null,
+                anchorLength: 10, isSpeaking: false, voices: [], appData: {},
+                currentDocIndex: 0, selectionRange: null, lastTapTime: 0, lastTapTarget: null,
             };
             
             this.DOC_COUNT = 20;
@@ -215,17 +227,22 @@
             this.mainTextArea.addEventListener('mouseup', (e) => this.handleSelection(e));
             this.mainTextArea.addEventListener('input', () => this.updateCharCount());
             document.addEventListener('click', (e) => {
-                if (!this.miniPalette.contains(e.target) && !this.mainTextArea.contains(e.target)) {
-                    this.hideMiniPalette();
-                }
+                if (!e.target.closest('.marker') && !e.target.closest('#mini-palette')) { this.clearAllReveals(); }
+                if (!this.miniPalette.contains(e.target) && !this.mainTextArea.contains(e.target)) { this.hideMiniPalette(); }
             });
-            
+            this.mainTextArea.addEventListener('click', (e) => this.handleMarkerClick(e));
             this.docSelect.addEventListener('change', (e) => this.switchDocument(parseInt(e.target.value, 10)));
             this.renameDocBtn.addEventListener('click', () => this.renameDocument());
-            this.managerHeader.addEventListener('click', () => this.toggleManagerPanel());
-            
+            this.managerHeader.addEventListener('click', (e) => {
+                 if (e.target.closest('.panel-header-controls')) return;
+                 this.toggleManagerPanel();
+            });
             this.copyTextBtn.addEventListener('click', () => this.copyPlainText());
             this.syncBtn.addEventListener('click', () => this.openSyncModal());
+            this.toggleMarkersCb.addEventListener('change', (e) => this.toggleAllMarkersVisibility(e.target.checked));
+            this.copyRulesBtn.addEventListener('click', () => this.copyCurrentDocRules());
+            this.importRulesBtn.addEventListener('click', () => this.importCurrentDocRules());
+            this.speechBtn.addEventListener('click', () => this.toggleSpeech());
             this.exportChoiceBtn.addEventListener('click', () => this.setupExportModal());
             this.importChoiceBtn.addEventListener('click', () => this.setupImportModal());
             this.closeModalBtn.addEventListener('click', () => this.closeSyncModal());
@@ -246,11 +263,9 @@
         }
         
         handleSelection(e) {
-            // (v2.2 logic remains)
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.isCollapsed || !selection.toString().trim()) {
-                this.hideMiniPalette();
-                return;
+                this.hideMiniPalette(); return;
             }
             this.state.selectionRange = selection.getRangeAt(0).cloneRange();
             const rect = this.state.selectionRange.getBoundingClientRect();
@@ -268,40 +283,89 @@
             this.state.selectionRange = null;
         }
 
-        createMarkerFromPalette(style) {
-            if (!this.state.selectionRange) return;
+        handleMarkerClick(e) {
+            const marker = e.target.closest('.marker');
+            if (!marker) return;
 
-            const hiddenText = this.state.selectionRange.toString().trim();
-            const preRange = document.createRange();
-            preRange.setStart(this.state.selectionRange.startContainer, 0);
-            preRange.setEnd(this.state.selectionRange.startContainer, this.state.selectionRange.startOffset);
-            const prefix = preRange.toString().slice(-this.state.anchorLength);
+            const now = Date.now();
+            if (now - this.state.lastTapTime < 300 && this.state.lastTapTarget === marker) {
+                this.removeRule(marker.dataset.fullRule);
+                this.state.lastTapTime = 0;
+                this.state.lastTapTarget = null;
+            } else {
+                this.toggleMarkerReveal(marker);
+                this.state.lastTapTime = now;
+                this.state.lastTapTarget = marker;
+            }
+        }
 
-            const postRange = document.createRange();
-            postRange.setStart(this.state.selectionRange.endContainer, this.state.selectionRange.endOffset);
-            postRange.setEnd(this.state.selectionRange.endContainer, this.state.selectionRange.endContainer.length);
-            const suffix = postRange.toString().slice(0, this.state.anchorLength);
+        toggleMarkerReveal(marker) {
+            if (marker.classList.contains('reveal')) {
+                this.unrevealMarker(marker);
+            } else {
+                this.clearAllReveals();
+                this.revealMarker(marker);
+            }
+        }
 
-            const styleString = `%% ${style.type}${style.value}`;
-            const rule = `${this.state.currentDocIndex} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText} ${styleString}`;
+        revealMarker(marker) {
+            marker.classList.add('reveal');
+            marker.textContent = marker.dataset.originalText;
+        }
+
+        unrevealMarker(marker) {
+            marker.classList.remove('reveal');
+            const style = marker.dataset.style;
+            if (style && style.startsWith('E')) {
+                 marker.textContent = style.substring(1).repeat(marker.dataset.originalText.length);
+            }
+        }
+
+        clearAllReveals() {
+            this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => this.unrevealMarker(m));
+        }
+
+        toggleAllMarkersVisibility(show) {
+            this.mainContainer.classList.toggle('markers-hidden', !show);
+        }
+
+        copyCurrentDocRules() {
+            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
+            const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
+            if (targetRules.length === 0) {
+                alert("この文章にはマーカーがありません。");
+                return;
+            }
+            navigator.clipboard.writeText(targetRules.join('\n')).then(() => {
+                alert("この文章のマーカールールをコピーしました。");
+            });
+        }
+
+        importCurrentDocRules() {
+            const pastedRules = prompt("ここに、コピーしたマーカールールを貼り付けてください。\n注意：この文章の既存のマーカーは上書きされます。");
+            if (pastedRules === null) return;
+
+            const otherDocsRules = this.state.appData.rules.split('\n').filter(Boolean)
+                .filter(rule => !rule.startsWith(this.state.currentDocIndex + ' ::'));
             
-            const currentRules = this.state.appData.rules.split('\n').filter(Boolean);
-            currentRules.push(rule);
-            this.state.appData.rules = currentRules.join('\n');
-            
+            const newRules = pastedRules.split('\n').filter(Boolean);
+            const isValid = newRules.every(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
+
+            if (!isValid) {
+                alert("エラー：貼り付けられたデータは、この文章用のルールではないようです。");
+                return;
+            }
+
+            this.state.appData.rules = [...otherDocsRules, ...newRules].join('\n');
             this.applyRules();
-            this.hideMiniPalette();
-            window.getSelection().removeAllRanges();
         }
 
         applyRules() {
             const originalText = this.getOriginalText();
             this.state.appData.documents[this.state.currentDocIndex].content = originalText;
-            
             this.mainTextArea.innerHTML = '';
             
             let segments = [{ text: originalText, type: 'text' }];
-
             const allRules = this.state.appData.rules.split('\n').filter(Boolean);
             const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
             
@@ -327,7 +391,7 @@
                             }
                         }
                     }
-                } catch(e) { /* ignore parse error */ }
+                } catch(e) {}
             });
 
             segments.forEach(seg => {
@@ -339,12 +403,9 @@
                     markerSpan.dataset.originalText = seg.text;
                     markerSpan.dataset.style = seg.style;
                     markerSpan.dataset.fullRule = seg.fullRule;
-                    
                     const type = seg.style.charAt(0);
                     const value = seg.style.substring(1);
-                    if (type === 'E') {
-                        markerSpan.textContent = value.repeat(seg.text.length);
-                    }
+                    if (type === 'E') { markerSpan.textContent = value.repeat(seg.text.length); }
                     this.mainTextArea.appendChild(markerSpan);
                 }
             });
@@ -369,14 +430,12 @@
                 const item = document.createElement('div');
                 item.className = 'manager-item';
                 item.dataset.fullRule = rule;
-
                 const ruleParts = rule.split(' -> ');
                 const hiddenTextAndStyle = ruleParts[1].split(' %% ');
                 const hiddenText = hiddenTextAndStyle[0];
                 const styleString = hiddenTextAndStyle[1];
                 const anchorText = ruleParts[0].split(' :: ')[1];
-
-                const icon = styleString.substring(1).repeat(1);
+                const icon = styleString.substring(1);
                 
                 item.innerHTML = `
                     <div class="manager-item-icon">${icon}</div>
@@ -386,42 +445,35 @@
                     </div>
                     <button class="manager-item-delete" title="このマーカーを削除">🗑️</button>
                 `;
-
-                item.querySelector('.manager-item-delete').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.removeRule(rule);
-                });
-                
+                item.querySelector('.manager-item-delete').addEventListener('click', (e) => { e.stopPropagation(); this.removeRule(rule); });
                 item.addEventListener('click', () => this.jumpToMarker(rule));
-
                 this.markerManagerList.appendChild(item);
             });
         }
         
         removeRule(ruleToRemove) {
             const allRules = this.state.appData.rules.split('\n');
-            const newRules = allRules.filter(rule => rule !== ruleToRemove);
-            this.state.appData.rules = newRules.join('\n');
-            this.applyRules();
+            const index = allRules.findIndex(r => r === ruleToRemove);
+            if (index > -1) {
+                allRules.splice(index, 1);
+                this.state.appData.rules = allRules.join('\n');
+                this.applyRules();
+            }
         }
 
         jumpToMarker(rule) {
-            const markerInDom = this.mainTextArea.querySelector(`.marker[data-full-rule="${rule}"]`);
+            const markerInDom = this.mainTextArea.querySelector(`.marker[data-full-rule="${CSS.escape(rule)}"]`);
             if (markerInDom) {
                 markerInDom.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                markerInDom.classList.remove('jump-highlight'); // remove for re-trigger
-                void markerInDom.offsetWidth; // trigger reflow
+                markerInDom.classList.remove('jump-highlight');
+                void markerInDom.offsetWidth;
                 markerInDom.classList.add('jump-highlight');
             }
         }
         
-        // --- Data Sync and Management ---
-
         copyPlainText() {
             const text = this.getOriginalText();
-            navigator.clipboard.writeText(text).then(() => {
-                alert("原文をクリップボードにコピーしました。");
-            });
+            navigator.clipboard.writeText(text).then(() => { alert("原文をクリップボードにコピーしました。"); });
         }
         
         openSyncModal() {
@@ -461,7 +513,7 @@
                     this.ioActionBtn.textContent = "コピーしました！";
                     setTimeout(() => this.ioActionBtn.textContent = "クリップボードにコピー", 2000);
                 });
-            } else { // Import
+            } else {
                 if(!confirm("本当に現在のデータを上書きしますか？この操作は元に戻せません。")) return;
                 try {
                     const newData = JSON.parse(this.ioTextarea.value);
@@ -487,8 +539,6 @@
                 this.saveState();
             }
         }
-
-        // --- State and UI Updates ---
         
         updateCharCount() {
             const count = this.getOriginalText().length;
@@ -516,11 +566,10 @@
             this.docSelect.value = this.state.currentDocIndex;
             const currentDoc = this.state.appData.documents[this.state.currentDocIndex];
             this.mainTextArea.textContent = currentDoc.content;
-            this.applyRules(); // This will also save state
+            this.applyRules();
         }
         
         getOriginalText() {
-            // (v2.2 logic remains)
             const tempDiv = document.createElement('div');
             this.mainTextArea.childNodes.forEach(node => {
                 if (node.nodeType === Node.TEXT_NODE) {
@@ -535,15 +584,14 @@
         }
 
         saveState() {
-            // 現在の本文を保存
             if (this.state.appData.documents[this.state.currentDocIndex]) {
                  this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
             }
-            localStorage.setItem('markerToolState_v3_0', JSON.stringify(this.state.appData));
+            localStorage.setItem('markerToolState_v3_2', JSON.stringify(this.state.appData));
         }
 
         loadState() {
-            const savedState = localStorage.getItem('markerToolState_v3_0');
+            const savedState = localStorage.getItem('markerToolState_v3_2');
             if (savedState) {
                 try {
                     const data = JSON.parse(savedState);
@@ -553,7 +601,6 @@
                 } catch(e) { this.resetData(); }
             } else { this.resetData(); }
 
-            // Ensure doc count is correct
             while(this.state.appData.documents.length < this.DOC_COUNT) {
                 const newIndex = this.state.appData.documents.length + 1;
                 this.state.appData.documents.push({ title: `文章 ${newIndex}`, content: `` });
@@ -568,13 +615,73 @@
             }
         }
         
-        // --- Other methods (mostly from v2.2) ---
         toggleManagerPanel() { this.managerPanel.classList.toggle('closed'); this.toggleManagerBtn.textContent = this.managerPanel.classList.contains('closed') ? '▲ 開く' : '▼ 閉じる'; }
-        initSpeech() { /* Dummy */ }
-        toggleSpeech() { alert("読み上げ機能は現在調整中です。"); }
-    }
 
-    new MarkerToolV3();
+        initSpeech() {
+            if (!('speechSynthesis' in window)) {
+                this.speechBtn.disabled = true; this.speechBtn.textContent = "読上不可"; return;
+            }
+            const loadVoices = () => {
+                this.state.voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('ja'));
+                if(this.state.voices.length > 0) {
+                    this.voiceSelect.style.display = 'inline-block';
+                    this.voiceSelect.innerHTML = '';
+                    this.state.voices.forEach(v => {
+                        const option = document.createElement('option');
+                        option.textContent = v.name; this.voiceSelect.appendChild(option);
+                    });
+                } else { this.voiceSelect.style.display = 'none'; }
+            };
+            speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
+        }
+
+        toggleSpeech() {
+            if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+            const textToSpeak = this.getOriginalText();
+            if (!textToSpeak.trim()) return;
+            const utterance = new SpeechSynthesisUtterterance(textToSpeak);
+            const voice = this.state.voices.find(v => v.name === this.voiceSelect.value);
+            if (voice) utterance.voice = voice;
+            utterance.onstart = () => { this.state.isSpeaking = true; this.speechBtn.textContent = "⏹ 停止"; };
+            utterance.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読み上げ"; this.clearHighlight(); };
+            utterance.onerror = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読み上げ"; this.clearHighlight(); };
+            utterance.onboundary = (e) => { if (e.name === 'word') this.highlightText(e.charIndex, e.charLength); };
+            speechSynthesis.speak(utterance);
+        }
+
+        highlightText(start, length) {
+            this.clearHighlight();
+            let charCount = 0;
+            const treeWalker = document.createTreeWalker(this.mainTextArea, Node.TEXT_NODE);
+            while(let node = treeWalker.nextNode()) {
+                const textLength = node.textContent.length;
+                if (charCount + textLength >= start) {
+                    const range = document.createRange();
+                    const startIndexInNode = Math.max(0, start - charCount);
+                    const endIndexInNode = Math.min(startIndexInNode + length, textLength);
+                    if (startIndexInNode >= endIndexInNode) continue;
+                    range.setStart(node, startIndexInNode);
+                    range.setEnd(node, endIndexInNode);
+                    const wrapper = document.createElement('span');
+                    wrapper.className = 'speech-highlight';
+                    try { range.surroundContents(wrapper); } catch (e) {}
+                    break;
+                }
+                charCount += textLength;
+            }
+        }
+        
+        clearHighlight() {
+            const highlighted = this.mainTextArea.querySelector('.speech-highlight');
+            if (highlighted) {
+                const parent = highlighted.parentNode;
+                while (highlighted.firstChild) parent.insertBefore(highlighted.firstChild, highlighted);
+                parent.removeChild(highlighted);
+                parent.normalize();
+            }
+        }
+    }
+    new MarkerToolV3_2();
     </script>
 </body>
 </html>
