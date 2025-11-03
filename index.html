@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デジタル・マーカー式暗記ツール v3.2</title>
+    <title>デジタル・マーカー式暗記ツール v3.2.1</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff; --rule-bg: #eef1f5;
@@ -112,7 +112,7 @@
 </head>
 <body>
     <header>
-        <h1>マーカー式暗記ツール v3.2</h1>
+        <h1>マーカー式暗記ツール v3.2.1</h1>
         <div class="control-group">
             <select id="doc-select"></select>
             <button id="rename-doc-btn" title="タイトルを編集">📝</button>
@@ -168,9 +168,8 @@
     </div>
 
     <script>
-    class MarkerToolV3_2 {
+    class MarkerToolV3_2_1 {
         constructor() {
-            // DOM Elements
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
             this.mainTextArea = document.getElementById('main-text-area');
@@ -402,7 +401,7 @@
                     markerSpan.className = 'marker';
                     markerSpan.dataset.originalText = seg.text;
                     markerSpan.dataset.style = seg.style;
-                    markerSpan.dataset.fullRule = seg.fullRule;
+                    markerSpan.dataset.fullRule = rule;
                     const type = seg.style.charAt(0);
                     const value = seg.style.substring(1);
                     if (type === 'E') { markerSpan.textContent = value.repeat(seg.text.length); }
@@ -639,12 +638,13 @@
             if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
             const textToSpeak = this.getOriginalText();
             if (!textToSpeak.trim()) return;
-            const utterance = new SpeechSynthesisUtterterance(textToSpeak);
+            // ★★★ BUG FIX HERE ★★★
+            const utterance = new SpeechSynthesisUtterance(textToSpeak); // Corrected typo
             const voice = this.state.voices.find(v => v.name === this.voiceSelect.value);
             if (voice) utterance.voice = voice;
             utterance.onstart = () => { this.state.isSpeaking = true; this.speechBtn.textContent = "⏹ 停止"; };
             utterance.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読み上げ"; this.clearHighlight(); };
-            utterance.onerror = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読み上げ"; this.clearHighlight(); };
+            utterance.onerror = (e) => { console.error(e); this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読み上げ"; this.clearHighlight(); };
             utterance.onboundary = (e) => { if (e.name === 'word') this.highlightText(e.charIndex, e.charLength); };
             speechSynthesis.speak(utterance);
         }
@@ -653,13 +653,13 @@
             this.clearHighlight();
             let charCount = 0;
             const treeWalker = document.createTreeWalker(this.mainTextArea, Node.TEXT_NODE);
-            while(let node = treeWalker.nextNode()) {
+            while(treeWalker.nextNode()) {
+                const node = treeWalker.currentNode;
                 const textLength = node.textContent.length;
-                if (charCount + textLength >= start) {
+                if (charCount <= start && start < charCount + textLength) {
                     const range = document.createRange();
-                    const startIndexInNode = Math.max(0, start - charCount);
+                    const startIndexInNode = start - charCount;
                     const endIndexInNode = Math.min(startIndexInNode + length, textLength);
-                    if (startIndexInNode >= endIndexInNode) continue;
                     range.setStart(node, startIndexInNode);
                     range.setEnd(node, endIndexInNode);
                     const wrapper = document.createElement('span');
@@ -679,6 +679,28 @@
                 parent.removeChild(highlighted);
                 parent.normalize();
             }
+        }
+
+        createMarkerFromPalette(style) {
+            if (!this.state.selectionRange) return;
+            const hiddenText = this.state.selectionRange.toString().trim();
+            if (!hiddenText) return;
+            const preRange = document.createRange();
+            preRange.setStart(this.state.selectionRange.startContainer, 0);
+            preRange.setEnd(this.state.selectionRange.startContainer, this.state.selectionRange.startOffset);
+            const prefix = preRange.toString().slice(-this.state.anchorLength);
+            const postRange = document.createRange();
+            postRange.setStart(this.state.selectionRange.endContainer, this.state.selectionRange.endOffset);
+            postRange.setEnd(this.state.selectionRange.endContainer, this.state.selectionRange.endContainer.length);
+            const suffix = postRange.toString().slice(0, this.state.anchorLength);
+            const styleString = `%% ${style.type}${style.value}`;
+            const rule = `${this.state.currentDocIndex} :: ${prefix.trim()}...${suffix.trim()} -> ${hiddenText} ${styleString}`;
+            const currentRules = this.state.appData.rules.split('\n').filter(Boolean);
+            currentRules.push(rule);
+            this.state.appData.rules = currentRules.join('\n');
+            this.applyRules();
+            this.hideMiniPalette();
+            window.getSelection().removeAllRanges();
         }
     }
     new MarkerToolV3_2();
