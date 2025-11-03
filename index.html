@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>デジタル・マーカー式暗記ツール v2.0</title>
+    <title>デジタル・マーカー式暗記ツール v2.1</title>
     <style>
         :root {
             --bg-color: #f4f4f9;
@@ -14,7 +14,8 @@
             --header-bg: #4a6fa5;
             --header-text: #ffffff;
             --button-bg: #5a85c8;
-            --highlight-bg: #fdff32;
+            --highlight-bg: #fffde7; /* 答え表示時の背景色 */
+            --speech-highlight-bg: #fdff32;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', 'Noto Sans CJK JP', sans-serif;
@@ -65,7 +66,7 @@
         }
         main {
             display: flex;
-            flex-direction: column; /* 上下分割に変更 */
+            flex-direction: column;
             flex-grow: 1;
             padding: 15px;
             gap: 15px;
@@ -85,11 +86,11 @@
         }
         .panel.rules {
             flex-shrink: 0;
-            height: 150px; /* 初期高さ */
+            height: 150px;
             transition: height 0.3s ease;
         }
         .panel.rules.closed {
-            height: 40px; /* 閉じたときの高さ */
+            height: 40px;
         }
         .panel-header {
             display: flex;
@@ -129,17 +130,15 @@
         .marker {
             cursor: pointer;
             border-radius: 3px;
-            padding: 0.1em 0;
-            transition: background-color 0.2s, color 0.2s;
             user-select: none;
+            letter-spacing: 0.05em; /* 絵文字間の少しのスペース */
         }
         .marker.reveal {
-            color: var(--text-color) !important;
-            background-color: var(--highlight-bg) !important;
-            background-image: none !important;
+            background-color: var(--highlight-bg);
+            letter-spacing: normal;
         }
         .speech-highlight {
-            background-color: var(--highlight-bg);
+            background-color: var(--speech-highlight-bg);
             border-radius: 3px;
         }
         .marker-palette {
@@ -151,25 +150,29 @@
             border-radius: 6px;
         }
         .palette-item {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
+            width: 28px;
+            height: 28px;
             cursor: pointer;
             border: 2px solid transparent;
+            border-radius: 6px;
             display: flex;
             justify-content: center;
             align-items: center;
-            font-size: 16px;
+            font-size: 20px;
+            transition: transform 0.1s;
+        }
+        .palette-item:hover {
+            transform: scale(1.1);
         }
         .palette-item.selected {
             border-color: #007bff;
-            box-shadow: 0 0 5px rgba(0,123,255,0.5);
+            background-color: #fff;
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>マーカー式暗記ツール v2.0</h1>
+        <h1>マーカー式暗記ツール v2.1</h1>
         <div class="control-group">
             <label for="doc-select">文章:</label>
             <select id="doc-select">
@@ -204,7 +207,7 @@
     </main>
 
     <script>
-    class MarkerToolV2 {
+    class MarkerToolV2_1 {
         constructor() {
             // DOM要素
             this.mainTextArea = document.getElementById('main-text-area');
@@ -215,17 +218,14 @@
             this.rulesPanel = document.getElementById('rules-panel');
             this.rulesHeader = document.getElementById('rules-header');
             this.toggleRulesBtn = document.getElementById('toggle-rules-btn');
-            
-            // マーカーパレット
             this.markerPaletteContainer = document.querySelector('.marker-palette');
+            
+            // マーカーパレット (ご指定の絵文字に変更)
             this.markerStyles = [
-                { type: 'C', value: '#333333', display: '⚫' }, // 黒
-                { type: 'C', value: '#e53935', display: '🔴' }, // 赤
-                { type: 'C', value: '#1e88e5', display: '🔵' }, // 青
-                { type: 'C', value: '#43a047', display: '🟢' }, // 緑
-                { type: 'E', value: '😀', display: '😀' },
-                { type: 'E', value: '❓', display: '❓' },
-                { type: 'E', value: '🧠', display: '🧠' }
+                { type: 'E', value: '😀' }, { type: 'E', value: '🌲' },
+                { type: 'E', value: '🍰' }, { type: 'E', value: '🗻' },
+                { type: 'E', value: '🚄' }, { type: 'E', value: '🚙' },
+                { type: 'E', value: '🐞' }, { type: 'E', value: '💀' }
             ];
 
             // アプリケーション状態
@@ -252,13 +252,10 @@
         }
 
         createMarkerPalette() {
-            this.markerStyles.forEach((style, index) => {
+            this.markerStyles.forEach(style => {
                 const item = document.createElement('div');
                 item.className = 'palette-item';
-                item.textContent = style.display;
-                item.style.backgroundColor = style.type === 'C' ? style.value : 'transparent';
-                if (style.type === 'C' && style.value === '#333333') item.style.color = '#fff';
-
+                item.textContent = style.value;
                 item.addEventListener('click', () => {
                     this.state.selectedMarkerStyle = style;
                     this.updatePaletteSelection();
@@ -270,11 +267,7 @@
 
         updatePaletteSelection() {
             Array.from(this.markerPaletteContainer.children).forEach((item, index) => {
-                if (this.markerStyles[index] === this.state.selectedMarkerStyle) {
-                    item.classList.add('selected');
-                } else {
-                    item.classList.remove('selected');
-                }
+                item.classList.toggle('selected', this.markerStyles[index] === this.state.selectedMarkerStyle);
             });
         }
         
@@ -287,9 +280,8 @@
             this.speechBtn.addEventListener('click', () => this.toggleSpeech());
         }
 
-        // --- 主要ロジック ---
-
         handleSelection() {
+            // (v2.0から変更なし)
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.isCollapsed) return;
             const selectedText = selection.toString().trim();
@@ -317,11 +309,13 @@
         }
 
         handleMarkerClick(e) {
-            if (!e.target.classList.contains('marker')) {
+            // ★★★ ロジックを完全に修正 ★★★
+            const marker = e.target.closest('.marker');
+            if (!marker) {
                 this.clearAllReveals();
                 return;
             }
-            const marker = e.target;
+
             const currentTime = new Date().getTime();
             const timeSinceLastTap = currentTime - this.state.lastTap;
 
@@ -330,46 +324,70 @@
                 this.state.lastTap = 0;
                 this.state.lastClickedMarker = null;
             } else {
-                this.clearAllReveals();
-                marker.classList.add('reveal');
+                // 他のマーカーが表示されていたら元に戻す
+                this.clearAllReveals(marker); 
+                // クリックしたマーカーの表示を切り替える
+                this.revealMarker(marker);
+                
                 this.state.lastTap = currentTime;
                 this.state.lastClickedMarker = marker;
             }
         }
+        
+        revealMarker(marker) {
+            // 答えを表示
+            marker.classList.add('reveal');
+            marker.textContent = marker.dataset.originalText;
+        }
+
+        unrevealMarker(marker) {
+            // マーカーに戻す
+             marker.classList.remove('reveal');
+            const styleString = marker.dataset.style;
+            const type = styleString.charAt(0);
+            const value = styleString.substring(1);
+            const originalText = marker.dataset.originalText;
+            if (type === 'E') {
+                 marker.textContent = value.repeat(originalText.length);
+            }
+        }
 
         removeMarker(markerElement) {
+            // (v2.0から変更なし)
             const hiddenText = markerElement.dataset.originalText;
             const styleString = markerElement.dataset.style;
             
-            const parent = markerElement.parentNode;
-            let fullText = parent.textContent;
-            // Note: This logic for finding index is simple. More robust logic may be needed for complex cases.
-            let tempText = "";
-            for (const node of parent.childNodes) {
-                if (node === markerElement) {
-                    tempText += hiddenText;
-                } else {
-                    tempText += node.textContent;
-                }
+            // アンカー再構築のためのロジックを改善
+            let prefix = '';
+            let suffix = '';
+            let prevNode = markerElement.previousSibling;
+            while(prevNode && prevNode.nodeType === Node.TEXT_NODE && prefix.length < this.state.anchorLength) {
+                prefix = prevNode.textContent + prefix;
+                prevNode = prevNode.previousSibling;
             }
-            let markerIndex = tempText.indexOf(hiddenText);
-            
-            const prefix = tempText.substring(markerIndex - this.state.anchorLength, markerIndex).trim();
-            const suffix = tempText.substring(markerIndex + hiddenText.length, markerIndex + hiddenText.length + this.state.anchorLength).trim();
+            let nextNode = markerElement.nextSibling;
+            while(nextNode && nextNode.nodeType === Node.TEXT_NODE && suffix.length < this.state.anchorLength) {
+                suffix += nextNode.textContent;
+                nextNode = nextNode.nextSibling;
+            }
+            prefix = prefix.slice(-this.state.anchorLength).trim();
+            suffix = suffix.slice(0, this.state.anchorLength).trim();
 
             const ruleToRemove = `${this.state.currentDocId} :: ${prefix}...${suffix} -> ${hiddenText} %% ${styleString}`;
             
             const rules = this.rulesTextArea.value.split('\n');
-            // A more robust removal logic to handle potential duplicate-looking rules
             const indexToRemove = rules.findIndex(line => line.trim() === ruleToRemove.trim());
             if (indexToRemove > -1) {
                 rules.splice(indexToRemove, 1);
                 this.rulesTextArea.value = rules.join('\n');
                 this.applyRules();
+            } else {
+                console.warn("Could not find rule to remove:", ruleToRemove);
             }
         }
 
         applyRules() {
+            // (v2.0からマーカー生成部分を修正)
             const originalText = this.getOriginalText();
             this.state.documents[this.state.currentDocId] = originalText;
             this.mainTextArea.innerHTML = '';
@@ -408,7 +426,7 @@
                             }
                         }
                     }
-                } catch (e) { console.error("Rule parsing error:", e); }
+                } catch (e) { /* Rule parsing error */ }
             });
 
             segments.forEach(seg => {
@@ -422,16 +440,9 @@
                     
                     const type = seg.style.charAt(0);
                     const value = seg.style.substring(1);
-                    if (type === 'C') {
-                        markerSpan.style.backgroundColor = value;
-                        markerSpan.style.color = 'transparent';
-                        markerSpan.textContent = " ".repeat(seg.text.length).replace(/ /g, '\u00A0');
-                    } else if (type === 'E') {
+                    if (type === 'E') {
                         markerSpan.textContent = value.repeat(seg.text.length);
-                        markerSpan.style.color = '#333';
-                        markerSpan.style.letterSpacing = '0.1em';
                     }
-
                     this.mainTextArea.appendChild(markerSpan);
                 }
             });
@@ -440,20 +451,20 @@
             this.saveState();
         }
 
-        // --- UI & 読み上げ ---
-
         toggleRulesPanel() {
+            // (v2.0から変更なし)
             this.rulesPanel.classList.toggle('closed');
             this.toggleRulesBtn.textContent = this.rulesPanel.classList.contains('closed') ? '▲ 開く' : '▼ 閉じる';
         }
 
         initSpeech() {
+            // (v2.0から変更なし)
             if (!('speechSynthesis' in window)) {
                 this.speechBtn.disabled = true;
                 this.speechBtn.textContent = "読上不可";
                 return;
             }
-            speechSynthesis.onvoiceschanged = () => {
+            const loadVoices = () => {
                 this.state.voices = speechSynthesis.getVoices().filter(v => v.lang.startsWith('ja'));
                 this.voiceSelect.innerHTML = '';
                 this.state.voices.forEach(v => {
@@ -462,15 +473,17 @@
                     this.voiceSelect.appendChild(option);
                 });
             };
-            // Initial load
-            setTimeout(() => speechSynthesis.onvoiceschanged(), 100);
+            speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
         }
 
         toggleSpeech() {
+            // (v2.0から変更なし)
             if (this.state.isSpeaking) {
                 speechSynthesis.cancel();
                 this.state.isSpeaking = false;
                 this.speechBtn.textContent = "▶ 読み上げ";
+                this.clearHighlight();
             } else {
                 const textToSpeak = this.getOriginalText();
                 if (!textToSpeak.trim()) return;
@@ -480,11 +493,10 @@
                 const voice = this.state.voices.find(v => v.name === selectedVoiceName);
                 if (voice) utterance.voice = voice;
                 
-                let charIndex = 0;
                 utterance.onboundary = (event) => {
-                    if (event.name === 'word') {
+                   if (event.name === 'word') {
                        this.highlightText(event.charIndex, event.charLength);
-                    }
+                   }
                 };
 
                 utterance.onend = () => {
@@ -500,33 +512,44 @@
         }
 
         highlightText(start, length) {
+            // (v2.0から変更なし)
             this.clearHighlight();
-            const originalText = this.getOriginalText();
-            // A simplified highlight logic. Might need refinement.
-            const wrapper = document.createElement('span');
-            wrapper.className = 'speech-highlight';
-
-            const range = document.createRange();
-            let currentNode, charCount = 0;
-            const treeWalker = document.createTreeWalker(this.mainTextArea, Node.TEXT_NODE);
+            let charCount = 0;
+            const treeWalker = document.createTreeWalker(this.mainTextArea, Node.TEXT_NODE | Node.ELEMENT_NODE);
             
-            while(currentNode = treeWalker.nextNode()) {
-                const textLength = currentNode.textContent.length;
-                if (charCount + textLength > start) {
-                    const startIndex = start - charCount;
-                    const endIndex = Math.min(startIndex + length, textLength);
-                    range.setStart(currentNode, startIndex);
-                    range.setEnd(currentNode, endIndex);
-                    try {
-                        range.surroundContents(wrapper);
-                    } catch(e) { /* ignore overlapping issues */ }
-                    break;
+            const findTextNodes = (root) => {
+                let nodes = [];
+                for(const node of root.childNodes) {
+                    if (node.nodeType === Node.TEXT_NODE) {
+                        nodes.push(node);
+                    } else if (node.nodeName === 'SPAN' && node.classList.contains('marker')) {
+                        nodes.push(...findTextNodes(node));
+                    }
                 }
-                charCount += textLength;
+                return nodes;
+            }
+            
+            const textNodes = findTextNodes(this.mainTextArea);
+            
+            for(const node of textNodes) {
+                 const textLength = node.textContent.length;
+                 if (charCount <= start && start < charCount + textLength) {
+                     const range = document.createRange();
+                     const startIndex = start - charCount;
+                     const endIndex = Math.min(startIndex + length, textLength);
+                     range.setStart(node, startIndex);
+                     range.setEnd(node, endIndex);
+                     const wrapper = document.createElement('span');
+                     wrapper.className = 'speech-highlight';
+                     try { range.surroundContents(wrapper); } catch (e) {}
+                     break;
+                 }
+                 charCount += textLength;
             }
         }
 
         clearHighlight() {
+            // (v2.0から変更なし)
             const highlighted = this.mainTextArea.querySelector('.speech-highlight');
             if (highlighted) {
                 const parent = highlighted.parentNode;
@@ -534,13 +557,12 @@
                     parent.insertBefore(highlighted.firstChild, highlighted);
                 }
                 parent.removeChild(highlighted);
-                parent.normalize(); // Merge text nodes
+                parent.normalize();
             }
         }
 
-        // --- 補助関数 & 状態管理 ---
-        
         switchDocument(docId) {
+            // (v2.0から変更なし)
             if (this.state.isSpeaking) this.toggleSpeech();
             this.state.documents[this.state.currentDocId] = this.getOriginalText();
             this.state.currentDocId = docId;
@@ -549,6 +571,7 @@
         }
         
         updateDocumentView() {
+            // (v2.0から変更なし)
             this.docSelect.value = this.state.currentDocId;
             const text = this.state.documents[this.state.currentDocId] || `これは「${this.docSelect.options[this.docSelect.selectedIndex].text}」です。\nここに学習したい文章を貼り付けてください。`;
             this.mainTextArea.textContent = text;
@@ -556,8 +579,8 @@
         }
         
         getOriginalText() {
+            // (v2.0から変更なし)
             const tempDiv = document.createElement('div');
-            // This is a complex part: we need to reconstruct text from markers
             this.mainTextArea.childNodes.forEach(node => {
                 if (node.nodeType === Node.TEXT_NODE) {
                     tempDiv.appendChild(node.cloneNode());
@@ -570,21 +593,28 @@
             return tempDiv.textContent || '';
         }
 
-        clearAllReveals() {
-            this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => m.classList.remove('reveal'));
+        clearAllReveals(exceptThisOne = null) {
+            // ★★★ ロジックを修正 ★★★
+            this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => {
+                if (m !== exceptThisOne) {
+                    this.unrevealMarker(m);
+                }
+            });
         }
-
+        
         saveState() {
+            // (v2.0から変更なし)
             const dataToSave = {
                 documents: this.state.documents,
                 rules: this.rulesTextArea.value,
                 currentDocId: this.state.currentDocId,
             };
-            localStorage.setItem('markerToolState_v2', JSON.stringify(dataToSave));
+            localStorage.setItem('markerToolState_v2_1', JSON.stringify(dataToSave));
         }
 
         loadState() {
-            const savedState = localStorage.getItem('markerToolState_v2');
+            // (v2.0からバージョン名のみ変更)
+            const savedState = localStorage.getItem('markerToolState_v2_1');
             if (savedState) {
                 const data = JSON.parse(savedState);
                 this.state.documents = data.documents || {};
@@ -594,7 +624,7 @@
         }
     }
 
-    new MarkerToolV2();
+    new MarkerToolV2_1();
     </script>
 </body>
 </html>
