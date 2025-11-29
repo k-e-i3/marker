@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗記ツール v3.3.1</title>
+    <title>暗記ツール v3.3.3</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
@@ -20,7 +20,6 @@
             display: flex; flex-direction: column; height: 100vh; overflow: hidden;
         }
         
-        /* ヘッダー */
         header {
             background-color: var(--header-bg); color: var(--header-text);
             padding: 5px 10px; display: flex; align-items: center; gap: 8px;
@@ -40,14 +39,12 @@
             color: white; font-size: 16px; cursor: pointer;
         }
         
-        /* ツールバー */
         #toolbar-container {
             background-color: var(--toolbar-bg); padding: 4px 8px;
             border-bottom: 1px solid var(--border-color);
             display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
         }
         
-        /* 操作ボタン */
         .action-row {
             display: flex; align-items: center; gap: 8px; overflow-x: auto;
             white-space: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 2px;
@@ -60,7 +57,6 @@
         .action-btn:active { background-color: #cbd5e0; }
         .action-btn input { margin-right: 4px; }
 
-        /* パレット（横スクロール） */
         .marker-scroll-row {
             display: flex; gap: 6px; overflow-x: auto; padding: 2px 0;
             -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -74,7 +70,6 @@
         }
         .palette-btn:active { background-color: #bee3f8; transform: scale(0.95); }
 
-        /* メインエリア */
         main {
             display: flex; flex-direction: column; flex-grow: 1;
             padding: 0; overflow: hidden; position: relative;
@@ -87,7 +82,6 @@
             -webkit-user-select: text; user-select: text;
         }
 
-        /* マネージャーパネル */
         .panel.manager {
             flex-shrink: 0; border-top: 1px solid var(--border-color); background: #f7fafc;
             height: 35vh; transition: height 0.3s; display: flex; flex-direction: column;
@@ -108,12 +102,10 @@
         .manager-item-text { flex-grow: 1; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .manager-item-delete { border: none; background: transparent; color: #a0aec0; padding: 5px; font-size: 1.2em; }
 
-        /* マーカー表示 */
         .marker { cursor: pointer; border-radius: 3px; letter-spacing: 0.05em; border-bottom: 2px solid rgba(0,0,0,0.1); }
         .marker.reveal { background-color: var(--highlight-bg); letter-spacing: normal; color: inherit !important; border-bottom: none; }
         .speech-highlight { background-color: var(--speech-highlight-bg); }
 
-        /* モーダル */
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.5); z-index: 1000; display: none;
@@ -129,7 +121,7 @@
 </head>
 <body>
     <header>
-        <h1>暗記ツール v3.3.1</h1>
+        <h1>暗記ツール v3.3.3</h1>
         <div class="doc-controls">
             <select id="doc-select"></select>
             <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
@@ -180,7 +172,7 @@
     </div>
 
     <script>
-    class MarkerToolV3_3_1 {
+    class MarkerToolV3_3_3 {
         constructor() {
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
@@ -247,7 +239,10 @@
         }
 
         bindEvents() {
-            this.mainTextArea.addEventListener('input', () => this.updateCharCount());
+            this.mainTextArea.addEventListener('input', () => {
+                this.updateCharCount();
+                this.saveState();
+            });
             this.mainTextArea.addEventListener('click', (e) => this.handleMainAreaClick(e));
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.marker') && !e.target.closest('#fixed-marker-palette')) {
@@ -286,6 +281,7 @@
         insertPlainText(text) {
             document.execCommand('insertText', false, text);
             this.updateCharCount();
+            this.saveState();
         }
 
         applyMarkerToSelection(style) {
@@ -296,25 +292,23 @@
             const hiddenText = range.toString().trim();
             if (!hiddenText) return;
 
-            // アンカー用（前後文字取得）
-            const fullText = this.getOriginalText(); // ここで正しい改行付きテキストを取得
+            // ★絵文字対応修正ポイント：スプレッド構文で文字を分割する
             const rangeBefore = document.createRange();
             rangeBefore.setStart(this.mainTextArea, 0);
             rangeBefore.setEnd(range.startContainer, range.startOffset);
             
-            // 注意: DOMのRangeからテキストを取得すると改行が無視される場合があるため、
-            // 簡易的に「選択された文字」をキーにする（重複時は最初のものになる制限はあるが安定性を優先）
-            // より厳密にするなら、カーソル位置のインデックス計算が必要だが、contenteditableでは非常に複雑。
-            // ここでは、選択範囲の前後のテキストをRange.toString()で取得する（一般的なブラウザではこれで十分動作する）
-            
+            // 普通のsliceだと絵文字が半分になるので、配列に展開してからsliceする
             const textBefore = rangeBefore.toString();
-            const prefix = textBefore.slice(-this.state.anchorLength);
+            const textBeforeArray = [...textBefore]; // 絵文字を1文字として扱う
+            const prefix = textBeforeArray.slice(-this.state.anchorLength).join('');
             
             const rangeAfter = document.createRange();
             rangeAfter.setStart(range.endContainer, range.endOffset);
             rangeAfter.setEnd(this.mainTextArea, this.mainTextArea.childNodes.length);
+            
             const textAfter = rangeAfter.toString();
-            const suffix = textAfter.slice(0, this.state.anchorLength);
+            const textAfterArray = [...textAfter];
+            const suffix = textAfterArray.slice(0, this.state.anchorLength).join('');
 
             const styleString = `%% ${style.type}${style.value}`;
             const rule = `${this.state.currentDocIndex} :: ${prefix}...${suffix} -> ${hiddenText} ${styleString}`;
@@ -372,29 +366,19 @@
             });
         }
 
-        /* ========== 重要修正部分：改行の維持 ========== */
-
         getOriginalText() {
-            // 現在のDOMからテキストを抽出する際、ブラウザの自動改行（divやbr）を正しく \n に変換する
-            // 最も確実な方法は、innerTextを取得することだが、マーカーが絵文字になっていると文字が変わってしまう。
-            // そのため、一時的にマーカーの中身を「元のテキスト」に戻してから innerText を取得する。
-            
-            // 1. マーカーの状態を保存し、中身を原文に戻す
-            const markers = Array.from(this.mainTextArea.querySelectorAll('.marker'));
-            markers.forEach(m => m.textContent = m.dataset.originalText);
-            
-            // 2. innerTextを取得（これでブラウザが見ている通りの改行が取得できる）
-            let text = this.mainTextArea.innerText;
-            
-            // 3. マーカーの状態を（見た目だけ）戻す（ただし直後にapplyRulesが走る場合は不要だが念のため）
-            // この処理はapplyRulesの中でDOMが再構築されるため、ここでは戻さなくても良いが副作用を防ぐ。
-            if(this.toggleMarkersCb.checked) {
-                markers.forEach(m => this.unrevealMarker(m));
-            }
-
-            // 末尾の余分な改行がつくことがあるので調整（オプション）
-            // text = text.replace(/\n$/, ''); 
-            
+            const clone = this.mainTextArea.cloneNode(true);
+            const markers = Array.from(clone.querySelectorAll('.marker'));
+            markers.forEach(m => {
+                m.replaceWith(document.createTextNode(m.dataset.originalText));
+            });
+            const tempDiv = document.createElement('div');
+            tempDiv.style.position = 'fixed'; tempDiv.style.left = '-9999px';
+            tempDiv.style.whiteSpace = 'pre-wrap'; tempDiv.style.visibility = 'hidden';
+            tempDiv.appendChild(clone);
+            document.body.appendChild(tempDiv);
+            const text = tempDiv.innerText;
+            document.body.removeChild(tempDiv);
             return text;
         }
 
@@ -433,10 +417,8 @@
                 } catch(e) {}
             });
 
-            // DOM再構築：ここで \n を確実に <br> に変換して表示する
             segments.forEach(seg => {
                 if (seg.type === 'text') {
-                    // テキスト内の改行コードで分割し、brタグを挿入する
                     const lines = seg.text.split('\n');
                     lines.forEach((line, idx) => {
                         if(line) this.mainTextArea.appendChild(document.createTextNode(line));
@@ -465,7 +447,6 @@
             
             if (!this.toggleMarkersCb.checked) this.toggleAllMarkersVisibility(false);
         }
-        /* ================================================== */
 
         renderMarkerManager() {
             this.markerManagerList.innerHTML = '';
@@ -573,22 +554,23 @@
         }
         switchDocument(i) {
             this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
+            this.saveState();
             this.state.currentDocIndex = i;
             this.updateDocumentView();
         }
         updateDocumentView() {
             this.docSelect.value = this.state.currentDocIndex;
-            // 初期ロード時は innerHTML に直接テキストを入れず、applyRulesを通すことで改行をbrに変換させる
-            // ただしルール適用前なので、一旦データを入れてからapplyRulesを呼ぶ
             this.state.appData.documents[this.state.currentDocIndex].content = this.state.appData.documents[this.state.currentDocIndex].content || '';
             this.applyRules();
         }
 
         updateCharCount() { this.charCounter.textContent = this.getOriginalText().length + "文字"; }
+        
         saveState() {
             this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
             localStorage.setItem('markerToolState_v3_3', JSON.stringify(this.state.appData));
         }
+        
         loadState() {
             try { 
                 this.state.appData = JSON.parse(localStorage.getItem('markerToolState_v3_3')); 
@@ -622,7 +604,7 @@
             this.speechBtn.textContent = "⏹ 停止";
         }
     }
-    new MarkerToolV3_3_1();
+    new MarkerToolV3_3_3();
     </script>
 </body>
 </html>
