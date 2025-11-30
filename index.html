@@ -2,43 +2,50 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- ★修正：user-scalable=yes に変更し、拡大縮小を可能にしました -->
+    <!-- 拡大縮小を許可 (user-scalable=yes) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>暗記ツール v3.3.7</title>
+    <title>暗記ツール v3.3.8</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
             --text-color: #333; --border-color: #cbd5e0;
-            --header-bg: #2d3748; --header-text: #ffffff;
-            --button-bg: #4a5568; --button-hover-bg: #2d3748;
+            /* ★更新確認用：ヘッダーを青色に変更 */
+            --header-bg: #1a365d; --header-text: #ffffff;
+            --button-bg: #2c5282; --button-hover-bg: #2a4365;
             --highlight-bg: #fffde7; --speech-highlight-bg: #fdff32;
             --toolbar-bg: #e2e8f0;
         }
         * { box-sizing: border-box; }
+        
+        /* 画面全体を固定する最強のレイアウト */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0; background-color: var(--bg-color); color: var(--text-color);
+            /* スクロール禁止（アプリ領域のみ固定） */
+            overflow: hidden; 
+            height: 100vh; width: 100vw;
+        }
+
+        /* アプリ全体を覆うコンテナ（絶対配置） */
+        #app-root {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             display: flex; flex-direction: column;
-            /* ★修正：100dvhに変更（スマホのアドレスバーによるズレを防止） */
-            height: 100dvh;
             overflow: hidden;
+            z-index: 1;
         }
         
         header {
             background-color: var(--header-bg); color: var(--header-text);
-            /* ★修正：高さ固定を廃止し、内容に合わせて伸びるように変更 */
             padding: 8px 10px; display: flex; align-items: center; gap: 8px;
             flex-shrink: 0; z-index: 10; min-height: 44px; justify-content: space-between;
-            flex-wrap: wrap; /* 画面が狭くても折り返す */
         }
         header h1 { font-size: 14px; margin: 0; display: none; }
         @media(min-width: 600px) { header h1 { display: block; } }
 
         .doc-controls { display: flex; flex-grow: 1; gap: 5px; max-width: 100%; align-items: center; }
         select#doc-select {
-            flex-grow: 1; max-width: 100%; height: 34px; font-size: 16px; /* 16pxにするとスマホでズームされない */
-            border: 1px solid #718096; background: #edf2f7; color: #1a202c; padding: 0 5px;
-            border-radius: 4px;
+            flex-grow: 1; max-width: 100%; height: 34px; font-size: 16px;
+            border: 1px solid #718096; background: #edf2f7; color: #1a202c; padding: 0 5px; border-radius: 4px;
         }
         button.icon-btn {
             height: 34px; width: 40px; padding: 0; display: flex; justify-content: center; align-items: center;
@@ -62,7 +69,6 @@
             height: 34px; white-space: nowrap; display: flex; align-items: center;
         }
         .action-btn:active { background-color: #cbd5e0; }
-        .action-btn input { margin-right: 6px; transform: scale(1.2); }
 
         .marker-scroll-row {
             display: flex; gap: 8px; overflow-x: auto; padding: 4px 0;
@@ -86,8 +92,9 @@
         
         #main-text-area {
             flex-grow: 1; padding: 15px; font-size: 16px; line-height: 1.8;
-            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
-            -webkit-user-select: text; user-select: text;
+            white-space: pre-wrap; word-wrap: break-word; 
+            overflow-y: auto; /* ここでスクロールさせる */
+            outline: none; -webkit-user-select: text; user-select: text;
         }
         #main-text-area:empty::before {
             content: attr(placeholder); color: #a0aec0; pointer-events: none; display: block;
@@ -131,41 +138,44 @@
     </style>
 </head>
 <body>
-    <header>
-        <h1>暗記ツール v3.3.7</h1>
-        <div class="doc-controls">
-            <select id="doc-select"></select>
-            <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
-            <button id="sync-btn" class="icon-btn" title="データ同期">☁</button>
-        </div>
-        <span id="char-counter" style="font-size:12px; min-width:60px; text-align:right;">0文字</span>
-    </header>
+    <!-- アプリ全体を囲むルート要素 -->
+    <div id="app-root">
+        <header>
+            <h1>暗記ツール v3.3.8</h1>
+            <div class="doc-controls">
+                <select id="doc-select"></select>
+                <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
+                <button id="sync-btn" class="icon-btn" title="データ同期">☁</button>
+            </div>
+            <span id="char-counter" style="font-size:12px; min-width:60px; text-align:right;">0文字</span>
+        </header>
 
-    <div id="toolbar-container">
-        <div class="action-row">
-            <button class="action-btn" id="paste-text-btn" title="ここを押して貼り付け">📋 ここで貼付</button>
-            <button class="action-btn" id="speech-btn">▶ 読上</button>
-            <button class="action-btn" id="copy-text-btn">📄 コピー</button>
-            <label class="action-btn" style="margin-left:auto;">
-                <input type="checkbox" id="toggle-markers-cb" checked> マーカー表示
-            </label>
+        <div id="toolbar-container">
+            <div class="action-row">
+                <button class="action-btn" id="paste-text-btn" title="ここを押して貼り付け">📋 ここで貼付</button>
+                <button class="action-btn" id="speech-btn">▶ 読上</button>
+                <button class="action-btn" id="copy-text-btn">📄 コピー</button>
+                <label class="action-btn" style="margin-left:auto;">
+                    <input type="checkbox" id="toggle-markers-cb" checked> マーカー表示
+                </label>
+            </div>
+            <div class="marker-scroll-row" id="fixed-marker-palette"></div>
         </div>
-        <div class="marker-scroll-row" id="fixed-marker-palette"></div>
+
+        <main id="main-container">
+            <div class="panel main">
+                <div id="main-text-area" contenteditable="true" spellcheck="false" placeholder="ここにテキストを貼り付けてください..."></div>
+            </div>
+            <div class="panel manager closed" id="manager-panel">
+                <div class="panel-header" id="manager-header">
+                    <span>マーカー一覧・管理</span>
+                    <span id="toggle-manager-btn">▲</span>
+                </div>
+                <div id="marker-manager-list"></div>
+            </div>
+        </main>
     </div>
 
-    <main id="main-container">
-        <div class="panel main">
-            <div id="main-text-area" contenteditable="true" spellcheck="false" placeholder="ここにテキストを貼り付けてください..."></div>
-        </div>
-        <div class="panel manager closed" id="manager-panel">
-            <div class="panel-header" id="manager-header">
-                <span>マーカー一覧・管理</span>
-                <span id="toggle-manager-btn">▲</span>
-            </div>
-            <div id="marker-manager-list"></div>
-        </div>
-    </main>
-    
     <div id="modal-overlay">
         <div class="modal-content" id="sync-modal">
             <h3 id="modal-title" style="margin:0;">データ同期</h3>
@@ -183,7 +193,7 @@
     </div>
 
     <script>
-    class MarkerToolV3_3_7 {
+    class MarkerToolV3_3_8 {
         constructor() {
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
@@ -414,4 +424,234 @@
             return text.replace(/\n+$/, '').replace(/^\n+/, '');
         }
 
-        applyRules
+        applyRules() {
+            const originalText = this.getOriginalText();
+            if (this.mainTextArea.childNodes.length > 0 && originalText.length === 0) return;
+
+            this.state.appData.documents[this.state.currentDocIndex].content = originalText;
+            this.mainTextArea.innerHTML = '';
+            
+            let segments = [{ text: originalText, type: 'text' }];
+            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
+            const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
+            
+            targetRules.forEach(rule => {
+                try {
+                    const ruleParts = rule.split(' -> ');
+                    const hiddenText = ruleParts[1].split(' %% ')[0];
+                    const styleString = ruleParts[1].split(' %% ')[1];
+                    const prefix = ruleParts[0].split(' :: ')[1].split('...')[0];
+                    const fullAnchor = prefix + hiddenText;
+                    
+                    for (let i = 0; i < segments.length; i++) {
+                        if (segments[i].type === 'text') {
+                            const index = segments[i].text.indexOf(fullAnchor);
+                            if (index > -1) {
+                                const before = segments[i].text.substring(0, index + prefix.length);
+                                const after = segments[i].text.substring(index + prefix.length + hiddenText.length);
+                                segments.splice(i, 1, 
+                                    { text: before, type: 'text' }, 
+                                    { text: hiddenText, type: 'marker', style: styleString, fullRule: rule }, 
+                                    { text: after, type: 'text' }
+                                );
+                                break;
+                            }
+                        }
+                    }
+                } catch(e) {}
+            });
+
+            segments.forEach(seg => {
+                if (seg.type === 'text') {
+                    const lines = seg.text.split('\n');
+                    lines.forEach((line, idx) => {
+                        if(line) this.mainTextArea.appendChild(document.createTextNode(line));
+                        if(idx < lines.length - 1) {
+                            this.mainTextArea.appendChild(document.createElement('br'));
+                        }
+                    });
+                } else if(seg.type === 'marker') {
+                    const markerSpan = document.createElement('span');
+                    markerSpan.className = 'marker';
+                    markerSpan.dataset.originalText = seg.text;
+                    markerSpan.dataset.style = seg.style;
+                    markerSpan.dataset.fullRule = seg.fullRule;
+                    const type = seg.style.charAt(0);
+                    const value = seg.style.substring(1);
+                    if (type === 'E') { markerSpan.textContent = value.repeat(seg.text.length); }
+                    this.mainTextArea.appendChild(markerSpan);
+                }
+            });
+
+            this.renderMarkerManager();
+            this.updateCharCount();
+            this.saveState();
+            if (!this.toggleMarkersCb.checked) this.toggleAllMarkersVisibility(false);
+        }
+
+        renderMarkerManager() {
+            this.markerManagerList.innerHTML = '';
+            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
+            const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
+
+            if(targetRules.length === 0) {
+                this.markerManagerList.innerHTML = '<p style="text-align:center; color:#718096; padding: 10px;">マーカーはありません</p>';
+                return;
+            }
+            targetRules.forEach(rule => {
+                const item = document.createElement('div');
+                item.className = 'manager-item';
+                const parts = rule.split(' -> ');
+                const hidden = parts[1].split(' %% ')[0];
+                const icon = parts[1].split(' %% ')[1].substring(1);
+                item.innerHTML = `
+                    <div class="manager-item-icon">${icon}</div>
+                    <div class="manager-item-text">${hidden}</div>
+                    <button class="manager-item-delete">×</button>
+                `;
+                item.querySelector('.manager-item-delete').addEventListener('click', (e) => { 
+                    e.stopPropagation(); 
+                    if(confirm("削除しますか？")) this.removeRule(rule); 
+                });
+                item.addEventListener('click', () => {
+                     const el = this.mainTextArea.querySelector(`.marker[data-full-rule="${CSS.escape(rule)}"]`);
+                     if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); this.toggleMarkerReveal(el); }
+                });
+                this.markerManagerList.appendChild(item);
+            });
+        }
+        
+        removeRule(rule) {
+            const rules = this.state.appData.rules.split('\n');
+            const idx = rules.indexOf(rule);
+            if (idx > -1) { rules.splice(idx, 1); this.state.appData.rules = rules.join('\n'); this.applyRules(); }
+        }
+        
+        copyPlainText() {
+            navigator.clipboard.writeText(this.getOriginalText()).then(() => alert("コピーしました"));
+        }
+        
+        openSyncModal() {
+            this.modalOverlay.style.display = 'flex';
+            this.modalChoices.style.display = 'flex';
+            this.ioTextarea.style.display = 'none';
+            this.ioActionBtn.style.display = 'none';
+            this.modalDesc.textContent = "データのバックアップ（書き出し）や復元（読み込み）を行います。";
+        }
+        setupExportModal() {
+            this.modalChoices.style.display = 'none';
+            this.modalDesc.textContent = "以下のデータをすべてコピーして保存してください。";
+            this.ioTextarea.style.display = 'block';
+            this.ioTextarea.readOnly = true;
+            this.ioTextarea.value = JSON.stringify(this.state.appData);
+            this.ioActionBtn.style.display = 'inline-block';
+            this.ioActionBtn.textContent = "コピーする";
+        }
+        setupImportModal() {
+            this.modalChoices.style.display = 'none';
+            this.modalDesc.textContent = "バックアップデータを貼り付けてください（現在のデータは上書きされます）。";
+            this.ioTextarea.style.display = 'block';
+            this.ioTextarea.readOnly = false;
+            this.ioTextarea.value = '';
+            this.ioActionBtn.style.display = 'inline-block';
+            this.ioActionBtn.textContent = "上書き読み込み";
+        }
+        closeSyncModal() { this.modalOverlay.style.display = 'none'; }
+        
+        handleIoAction() {
+            if (this.ioActionBtn.textContent.includes('コピー')) {
+                navigator.clipboard.writeText(this.ioTextarea.value);
+                alert("コピーしました");
+            } else {
+                try {
+                    const data = JSON.parse(this.ioTextarea.value);
+                    if (data.documents) {
+                        if(confirm("本当に上書きしますか？")) {
+                            this.state.appData = data;
+                            this.saveState();
+                            this.updateDocSelect();
+                            this.updateDocumentView();
+                            this.closeSyncModal();
+                            alert("完了しました");
+                        }
+                    } else { alert("データ形式が正しくありません"); }
+                } catch(e) { alert("エラー: 正しいJSONデータではありません"); }
+            }
+        }
+        
+        renameDocument() {
+            const cur = this.state.appData.documents[this.state.currentDocIndex];
+            const name = prompt("新しいタイトル:", cur.title);
+            if(name) { cur.title = name; this.updateDocSelect(); this.saveState(); }
+        }
+        updateDocSelect() {
+            this.docSelect.innerHTML = '';
+            this.state.appData.documents.forEach((d, i) => {
+                const o = document.createElement('option');
+                o.value = i; o.textContent = d.title;
+                this.docSelect.appendChild(o);
+            });
+            this.docSelect.value = this.state.currentDocIndex;
+        }
+        switchDocument(i) {
+            this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
+            this.saveState();
+            this.state.currentDocIndex = i;
+            this.updateDocumentView();
+        }
+        updateDocumentView() {
+            this.docSelect.value = this.state.currentDocIndex;
+            this.state.appData.documents[this.state.currentDocIndex].content = this.state.appData.documents[this.state.currentDocIndex].content || '';
+            this.applyRules();
+        }
+
+        updateCharCount() { this.charCounter.textContent = this.getOriginalText().length + "文字"; }
+        
+        saveState() {
+            const text = this.getOriginalText();
+            this.state.appData.documents[this.state.currentDocIndex].content = text;
+            localStorage.setItem('markerToolState_v3_3', JSON.stringify(this.state.appData));
+        }
+        
+        loadState() {
+            try { 
+                this.state.appData = JSON.parse(localStorage.getItem('markerToolState_v3_3')); 
+            } catch(e) {}
+            if(!this.state.appData || !this.state.appData.documents) this.resetData();
+        }
+        resetData() {
+            this.state.appData = { documents: [], rules: '' };
+            for(let i=1; i<=this.DOC_COUNT; i++) this.state.appData.documents.push({title: `文章 ${i}`, content: ''});
+        }
+        toggleManagerPanel() {
+            this.managerPanel.classList.toggle('closed');
+            this.toggleManagerBtn.textContent = this.managerPanel.classList.contains('closed') ? '▲' : '▼';
+        }
+
+        initSpeech() { if(!window.speechSynthesis) this.speechBtn.disabled = true; }
+        toggleSpeech() {
+            if(this.state.isSpeaking) {
+                window.speechSynthesis.cancel();
+                this.state.isSpeaking = false;
+                this.speechBtn.textContent = "▶ 読上";
+                return;
+            }
+            const text = this.getOriginalText();
+            if(!text || text.trim() === '') {
+                alert("読み上げるテキストがありません");
+                return;
+            }
+            window.speechSynthesis.cancel();
+            const u = new SpeechSynthesisUtterance(text);
+            u.lang = 'ja-JP'; 
+            u.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
+            u.onerror = (e) => { console.error("Speech error", e); this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
+            window.speechSynthesis.speak(u);
+            this.state.isSpeaking = true;
+            this.speechBtn.textContent = "⏹ 停止";
+        }
+    }
+    new MarkerToolV3_3_8();
+    </script>
+</body>
+</html>
