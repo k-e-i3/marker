@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗記ツール v3.3.3</title>
+    <title>暗記ツール v3.3.5</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
@@ -81,6 +81,9 @@
             white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
             -webkit-user-select: text; user-select: text;
         }
+        #main-text-area:empty::before {
+            content: attr(placeholder); color: #a0aec0; pointer-events: none; display: block;
+        }
 
         .panel.manager {
             flex-shrink: 0; border-top: 1px solid var(--border-color); background: #f7fafc;
@@ -121,7 +124,7 @@
 </head>
 <body>
     <header>
-        <h1>暗記ツール v3.3.3</h1>
+        <h1>暗記ツール v3.3.5</h1>
         <div class="doc-controls">
             <select id="doc-select"></select>
             <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
@@ -132,7 +135,7 @@
 
     <div id="toolbar-container">
         <div class="action-row">
-            <button class="action-btn" id="paste-text-btn" title="書式なしで貼り付け">📋 テキスト貼付</button>
+            <button class="action-btn" id="paste-text-btn" title="ここを押して貼り付け">📋 ここで貼付</button>
             <button class="action-btn" id="speech-btn">▶ 読上</button>
             <button class="action-btn" id="copy-text-btn">📄 コピー</button>
             <label class="action-btn" style="margin-left:auto;">
@@ -144,7 +147,7 @@
 
     <main id="main-container">
         <div class="panel main">
-            <div id="main-text-area" contenteditable="true" spellcheck="false" placeholder="ここにテキストを入力..."></div>
+            <div id="main-text-area" contenteditable="true" spellcheck="false" placeholder="ここにテキストを貼り付けてください..."></div>
         </div>
         <div class="panel manager closed" id="manager-panel">
             <div class="panel-header" id="manager-header">
@@ -172,7 +175,7 @@
     </div>
 
     <script>
-    class MarkerToolV3_3_3 {
+    class MarkerToolV3_3_5 {
         constructor() {
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
@@ -249,16 +252,33 @@
                     this.clearAllReveals();
                 }
             });
+            
+            // 貼り付け制御（書式を消してテキストのみにする）
             this.mainTextArea.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const text = (e.clipboardData || window.clipboardData).getData('text');
                 this.insertPlainText(text);
             });
+            
             this.docSelect.addEventListener('change', (e) => this.switchDocument(parseInt(e.target.value, 10)));
             this.renameDocBtn.addEventListener('click', () => this.renameDocument());
             this.managerHeader.addEventListener('click', () => this.toggleManagerPanel());
             this.copyTextBtn.addEventListener('click', () => this.copyPlainText());
-            this.pasteTextBtn.addEventListener('click', () => this.handlePasteButton());
+            
+            // 貼り付けボタン
+            this.pasteTextBtn.addEventListener('click', () => {
+                this.mainTextArea.focus();
+                try {
+                    navigator.clipboard.readText().then(text => {
+                        this.insertPlainText(text);
+                    }).catch(() => {
+                        alert("テキストエリアにカーソルを合わせました。\n端末の「貼り付け」機能で貼り付けてください。");
+                    });
+                } catch(e) {
+                    alert("テキストエリアにカーソルを合わせました。\n端末の「貼り付け」機能で貼り付けてください。");
+                }
+            });
+            
             this.syncBtn.addEventListener('click', () => this.openSyncModal());
             this.toggleMarkersCb.addEventListener('change', (e) => this.toggleAllMarkersVisibility(e.target.checked));
             this.speechBtn.addEventListener('click', () => this.toggleSpeech());
@@ -266,16 +286,6 @@
             this.importChoiceBtn.addEventListener('click', () => this.setupImportModal());
             this.closeModalBtn.addEventListener('click', () => this.closeSyncModal());
             this.ioActionBtn.addEventListener('click', () => this.handleIoAction());
-        }
-
-        async handlePasteButton() {
-            try {
-                const text = await navigator.clipboard.readText();
-                if (text) this.insertPlainText(text);
-                else alert("クリップボードにテキストがありません。");
-            } catch (err) {
-                alert("貼り付けに失敗しました。長押しして貼り付けてください。");
-            }
         }
 
         insertPlainText(text) {
@@ -292,14 +302,13 @@
             const hiddenText = range.toString().trim();
             if (!hiddenText) return;
 
-            // ★絵文字対応修正ポイント：スプレッド構文で文字を分割する
+            // 絵文字対応: スプレッド構文で文字数カウント
             const rangeBefore = document.createRange();
             rangeBefore.setStart(this.mainTextArea, 0);
             rangeBefore.setEnd(range.startContainer, range.startOffset);
             
-            // 普通のsliceだと絵文字が半分になるので、配列に展開してからsliceする
             const textBefore = rangeBefore.toString();
-            const textBeforeArray = [...textBefore]; // 絵文字を1文字として扱う
+            const textBeforeArray = [...textBefore]; 
             const prefix = textBeforeArray.slice(-this.state.anchorLength).join('');
             
             const rangeAfter = document.createRange();
@@ -366,24 +375,51 @@
             });
         }
 
+        // ★★★ 根本解決：見た目（innerText）ではなく、データ構造（textContent）から文字を復元する ★★★
         getOriginalText() {
-            const clone = this.mainTextArea.cloneNode(true);
-            const markers = Array.from(clone.querySelectorAll('.marker'));
-            markers.forEach(m => {
-                m.replaceWith(document.createTextNode(m.dataset.originalText));
-            });
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'fixed'; tempDiv.style.left = '-9999px';
-            tempDiv.style.whiteSpace = 'pre-wrap'; tempDiv.style.visibility = 'hidden';
-            tempDiv.appendChild(clone);
-            document.body.appendChild(tempDiv);
-            const text = tempDiv.innerText;
-            document.body.removeChild(tempDiv);
-            return text;
+            // 再帰的にノードを探索してテキストを結合する関数
+            const extract = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    return node.textContent;
+                }
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    // マーカーなら隠れている文字を返す
+                    if (node.classList.contains('marker')) {
+                        return node.dataset.originalText || '';
+                    }
+                    // BRタグは改行
+                    if (node.tagName === 'BR') {
+                        return '\n';
+                    }
+                    // 子要素を結合
+                    let childText = '';
+                    node.childNodes.forEach(child => {
+                        childText += extract(child);
+                    });
+                    // DIVやPタグのブロック終了後は改行を入れる（簡易対応）
+                    if (['DIV', 'P', 'LI'].includes(node.tagName) && childText.length > 0) {
+                        return childText + '\n';
+                    }
+                    return childText;
+                }
+                return '';
+            };
+            
+            // 画面外クローンなどは使わず、今のメインエリアを直接解析する
+            // これならブラウザの表示・非表示判定に左右されない
+            let text = extract(this.mainTextArea);
+            
+            // 余計な連続改行を整理
+            return text.replace(/\n+$/, '').replace(/^\n+/, '');
         }
 
         applyRules() {
             const originalText = this.getOriginalText();
+            // 万が一データが空の場合は、誤って消さないようにガード
+            if (this.mainTextArea.childNodes.length > 0 && originalText.length === 0) {
+                 return; 
+            }
+
             this.state.appData.documents[this.state.currentDocIndex].content = originalText;
             this.mainTextArea.innerHTML = '';
             
@@ -567,7 +603,8 @@
         updateCharCount() { this.charCounter.textContent = this.getOriginalText().length + "文字"; }
         
         saveState() {
-            this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
+            const text = this.getOriginalText();
+            this.state.appData.documents[this.state.currentDocIndex].content = text;
             localStorage.setItem('markerToolState_v3_3', JSON.stringify(this.state.appData));
         }
         
@@ -594,17 +631,27 @@
                 this.speechBtn.textContent = "▶ 読上";
                 return;
             }
+            // ★ getOriginalTextの修正により、ここも正常にテキストが取得できるようになります
             const text = this.getOriginalText();
-            if(!text) return;
+            if(!text || text.trim() === '') {
+                alert("読み上げるテキストがありません");
+                return;
+            }
+            
+            // 一度キャンセルしてキューをクリア
+            window.speechSynthesis.cancel();
+            
             const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'ja-JP';
+            u.lang = 'ja-JP'; // 言語を明示
             u.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
+            u.onerror = (e) => { console.error("Speech error", e); this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
+            
             window.speechSynthesis.speak(u);
             this.state.isSpeaking = true;
             this.speechBtn.textContent = "⏹ 停止";
         }
     }
-    new MarkerToolV3_3_3();
+    new MarkerToolV3_3_5();
     </script>
 </body>
 </html>
