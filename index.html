@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>暗記ツール v3.4.0</title>
+    <title>暗記ツール v3.4.1</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
             --text-color: #333; --border-color: #cbd5e0;
-            --header-bg: #1a365d; --header-text: #ffffff;
-            --button-bg: #2c5282; --button-hover-bg: #2a4365;
+            /* ★更新確認用：ヘッダーを紫に変更 */
+            --header-bg: #4c1d95; --header-text: #ffffff;
+            --button-bg: #5b21b6; --button-hover-bg: #4c1d95;
             --highlight-bg: #fffde7; --speech-highlight-bg: #fdff32;
             --toolbar-bg: #e2e8f0;
             --status-ok: #48bb78; --status-saving: #ecc94b;
@@ -44,9 +45,8 @@
             color: white; font-size: 18px; cursor: pointer; flex-shrink: 0;
         }
         
-        /* 保存ステータス表示 */
         #save-status {
-            font-size: 11px; color: #cbd5e0; margin-left: 5px; white-space: nowrap;
+            font-size: 11px; color: #e9d8fd; margin-left: 5px; white-space: nowrap;
             display: flex; align-items: center; gap: 2px; height: 14px;
         }
         #save-status.saved { color: var(--status-ok); font-weight: bold; }
@@ -140,7 +140,7 @@
                 <select id="doc-select"></select>
                 <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
                 <button id="sync-btn" class="icon-btn" title="データ同期">☁</button>
-                <button id="manual-save-btn" class="icon-btn" title="強制保存" style="background:#2f855a;">💾</button>
+                <button id="manual-save-btn" class="icon-btn" title="強制保存" style="background:#059669;">💾</button>
             </div>
             <div style="text-align:right;">
                 <div id="char-counter" style="font-size:11px;">0文字</div>
@@ -174,7 +174,7 @@
         </main>
     </div>
 
-    <!-- モーダル類は省略せず実装 -->
+    <!-- モーダル -->
     <div id="modal-overlay">
         <div class="modal-content" id="sync-modal">
             <h3 id="modal-title" style="margin:0;">データ同期</h3>
@@ -192,9 +192,8 @@
     </div>
 
     <script>
-    class MarkerToolV3_4_0 {
+    class MarkerToolV3_4_1 {
         constructor() {
-            // DOM取得
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
             this.mainTextArea = document.getElementById('main-text-area');
@@ -212,7 +211,6 @@
             this.toggleMarkersCb = document.getElementById('toggle-markers-cb');
             this.fixedPalette = document.getElementById('fixed-marker-palette');
             
-            // モーダル
             this.modalOverlay = document.getElementById('modal-overlay');
             this.modalTitle = document.getElementById('modal-title');
             this.modalDesc = document.getElementById('modal-desc');
@@ -223,7 +221,6 @@
             this.exportChoiceBtn = document.getElementById('export-choice-btn');
             this.importChoiceBtn = document.getElementById('import-choice-btn');
             
-            // 設定
             this.markerStyles = [
                 { type: 'E', value: '🐞' }, { type: 'E', value: '🐙' }, { type: 'E', value: '😀' },
                 { type: 'E', value: '🐸' }, { type: 'E', value: '👽' }, { type: 'E', value: '🧟' },
@@ -235,7 +232,7 @@
             this.state = {
                 anchorLength: 10, isSpeaking: false, appData: {},
                 currentDocIndex: 0, lastTapTime: 0, lastTapTarget: null,
-                isProcessing: false // 重要：処理中の排他制御用フラグ
+                isProcessing: false // ロックフラグ
             };
             this.DOC_COUNT = 20;
             this.init();
@@ -265,11 +262,12 @@
         }
 
         bindEvents() {
-            // ★重要：保存ハンドラ。処理中(isProcessing)なら何もしない
+            // 保存トリガー（ロック中は無視）
             const saveHandler = () => {
-                if(this.state.isProcessing) return; // ロック中は無視
+                if(this.state.isProcessing) return;
+                this.saveCurrentDocToMemory(); // メモリ更新
+                this.saveToLocalStorage();     // スマホ保存
                 this.updateCharCount();
-                this.saveState();
             };
             
             this.mainTextArea.addEventListener('input', saveHandler);
@@ -285,7 +283,6 @@
                 }
             });
             
-            // 貼り付け：OSの貼り付け機能用
             this.mainTextArea.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const text = (e.clipboardData || window.clipboardData).getData('text');
@@ -297,22 +294,21 @@
             this.managerHeader.addEventListener('click', () => this.toggleManagerPanel());
             this.copyTextBtn.addEventListener('click', () => this.copyPlainText());
             this.manualSaveBtn.addEventListener('click', () => {
-                this.saveState();
-                alert("現在の内容を保存しました");
+                this.saveCurrentDocToMemory();
+                this.saveToLocalStorage();
+                alert("保存しました");
             });
 
-            // 貼り付けボタン（ボタンクリック時）
             this.pasteTextBtn.addEventListener('click', () => {
                 this.mainTextArea.focus();
-                // クリップボード読み取り
                 try {
                     navigator.clipboard.readText().then(text => {
                         this.handlePasteText(text);
                     }).catch(() => {
-                        alert("貼り付けボタンが使えません。\n画面長押しで「貼り付け」を選んでください。");
+                        alert("ボタンが使えません。画面長押しで貼り付けてください。");
                     });
                 } catch(e) {
-                    alert("貼り付けボタンが使えません。\n画面長押しで「貼り付け」を選んでください。");
+                    alert("ボタンが使えません。画面長押しで貼り付けてください。");
                 }
             });
             
@@ -325,33 +321,25 @@
             this.ioActionBtn.addEventListener('click', () => this.handleIoAction());
         }
 
-        // ★新・貼り付け処理（改行コードを強制統一して挿入）
         handlePasteText(text) {
             if(!text) return;
-            // 改行コードを \n に統一（\r\n も \r も全て \n にする）
             const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            
-            // カーソル位置に挿入
             const selection = window.getSelection();
             if (selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 range.deleteContents();
                 const textNode = document.createTextNode(cleanText);
                 range.insertNode(textNode);
-                
-                // カーソルを挿入後に移動
                 range.setStartAfter(textNode);
                 range.setEndAfter(textNode);
                 selection.removeAllRanges();
                 selection.addRange(range);
             } else {
-                // カーソルがない場合は末尾
                 this.mainTextArea.appendChild(document.createTextNode(cleanText));
             }
-
-            // ルール再適用と保存（これで<br>への変換などが走る）
-            this.saveState(); // 一旦生の状態で保存
-            this.applyRules(); // 表示整形
+            this.saveCurrentDocToMemory();
+            this.saveToLocalStorage();
+            this.applyRules();
         }
 
         getCleanTextFromRange(range) {
@@ -396,6 +384,7 @@
             this.state.appData.rules = currentRules.join('\n');
             this.applyRules();
             window.getSelection().removeAllRanges();
+            this.saveToLocalStorage(); // ルール変更も即保存
         }
 
         handleMainAreaClick(e) {
@@ -462,10 +451,10 @@
 
         applyRules() {
             const originalText = this.getOriginalText();
-            // 初回ロード時以外で空の場合はガード
-            if (this.mainTextArea.childNodes.length > 0 && originalText.length === 0) return;
-
-            this.state.appData.documents[this.state.currentDocIndex].content = originalText;
+            // データ空ガード：ただし初回や意図的な削除は許容する必要がある
+            // ここでは「表示更新」なので、getOriginalTextが今のDOM（空かもしれない）を返すのは正しい
+            
+            // ★重要：レンダリング中は内部データは書き換えない（読み取り専用）
             this.mainTextArea.innerHTML = '';
             
             let segments = [{ text: originalText, type: 'text' }];
@@ -522,7 +511,6 @@
 
             this.renderMarkerManager();
             this.updateCharCount();
-            // applyRules内ではsaveStateを呼ばない（ループ防止）
             if (!this.toggleMarkersCb.checked) this.toggleAllMarkersVisibility(false);
         }
 
@@ -561,7 +549,7 @@
         removeRule(rule) {
             const rules = this.state.appData.rules.split('\n');
             const idx = rules.indexOf(rule);
-            if (idx > -1) { rules.splice(idx, 1); this.state.appData.rules = rules.join('\n'); this.applyRules(); }
+            if (idx > -1) { rules.splice(idx, 1); this.state.appData.rules = rules.join('\n'); this.applyRules(); this.saveToLocalStorage(); }
         }
         
         copyPlainText() {
@@ -605,7 +593,7 @@
                     if (data.documents) {
                         if(confirm("本当に上書きしますか？")) {
                             this.state.appData = data;
-                            this.saveState();
+                            this.saveToLocalStorage();
                             this.updateDocSelect();
                             this.updateDocumentView();
                             this.closeSyncModal();
@@ -619,7 +607,7 @@
         renameDocument() {
             const cur = this.state.appData.documents[this.state.currentDocIndex];
             const name = prompt("新しいタイトル:", cur.title);
-            if(name) { cur.title = name; this.updateDocSelect(); this.saveState(); }
+            if(name) { cur.title = name; this.updateDocSelect(); this.saveToLocalStorage(); }
         }
         updateDocSelect() {
             this.docSelect.innerHTML = '';
@@ -631,44 +619,56 @@
             this.docSelect.value = this.state.currentDocIndex;
         }
 
-        // ★重要修正：ドキュメント切り替え（排他制御付き）
+        // ★★★ 根本的修正：切り替え時のデータ混同防止 ★★★
         switchDocument(i) {
-            if(this.state.isProcessing) return; // ロック中は切り替えも無視
+            if(this.state.isProcessing) return; 
             this.state.isProcessing = true; // ロック開始
 
-            // 1. 現データの保存（念のため）
-            const currentText = this.getOriginalText();
-            this.state.appData.documents[this.state.currentDocIndex].content = currentText;
-            this.saveState(); // localStorageへ書き込み
+            // 1. 今の画面の内容を、今のインデックスのメモリに保存
+            this.saveCurrentDocToMemory();
+            this.saveToLocalStorage(); // 念のため物理保存
 
             // 2. インデックス切り替え
             this.state.currentDocIndex = i;
 
-            // 3. 新データロード
-            this.updateDocumentView();
+            // 3. 画面を物理的にクリア（重要：これで前の文章の残像を消す）
+            this.mainTextArea.innerHTML = ''; 
+
+            // 4. 新しいインデックスのデータをメモリからDOMへ展開
+            //    undefined対策をしておく
+            if(!this.state.appData.documents[i]) {
+                this.state.appData.documents[i] = { title: `文章 ${i+1}`, content: '' };
+            }
             
-            // 4. 少し待ってロック解除（イベントの余波が収まるのを待つ）
-            setTimeout(() => { this.state.isProcessing = false; }, 200);
+            // 5. ビュー更新（新しいcontentを使ってapplyRulesする）
+            //    getOriginalTextではなく、メモリ内のcontentを正とする
+            this.mainTextArea.innerText = this.state.appData.documents[i].content || '';
+            this.applyRules();
+
+            // 6. ロック解除（少し待つ）
+            setTimeout(() => { this.state.isProcessing = false; }, 300);
         }
 
         updateDocumentView() {
             this.docSelect.value = this.state.currentDocIndex;
-            // データが存在しなければ空文字を入れる（undefined対策）
-            if(!this.state.appData.documents[this.state.currentDocIndex].content) {
-                this.state.appData.documents[this.state.currentDocIndex].content = '';
-            }
+            // 初期ロード時はここを通る。メモリの内容をDOMに反映
+            const content = this.state.appData.documents[this.state.currentDocIndex].content || '';
+            this.mainTextArea.innerText = content;
             this.applyRules();
         }
 
         updateCharCount() { this.charCounter.textContent = this.getOriginalText().length + "文字"; }
         
-        saveState() {
-            // 現在のテキストをデータに反映
-            this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
-            // ストレージ保存
+        // ★機能分離：メモリへの保存
+        saveCurrentDocToMemory() {
+            const text = this.getOriginalText();
+            this.state.appData.documents[this.state.currentDocIndex].content = text;
+        }
+
+        // ★機能分離：物理ストレージへの保存
+        saveToLocalStorage() {
             localStorage.setItem('markerToolState_v3_3', JSON.stringify(this.state.appData));
             
-            // ステータス表示
             this.saveStatus.textContent = "✅ 保存済";
             this.saveStatus.classList.add('saved');
             clearTimeout(this.saveTimer);
@@ -680,10 +680,26 @@
         
         loadState() {
             try { 
-                this.state.appData = JSON.parse(localStorage.getItem('markerToolState_v3_3')); 
-            } catch(e) {}
-            if(!this.state.appData || !this.state.appData.documents) this.resetData();
+                const loaded = JSON.parse(localStorage.getItem('markerToolState_v3_3'));
+                if(loaded && Array.isArray(loaded.documents)) {
+                    this.state.appData = loaded;
+                    // ★重要：データの結合（参照共有）を切る「手術」
+                    // 全てのドキュメントを新しいオブジェクトとしてコピーし直す
+                    this.state.appData.documents = this.state.appData.documents.map(doc => ({
+                        title: doc.title,
+                        content: doc.content
+                    }));
+                } else {
+                    this.resetData();
+                }
+            } catch(e) { this.resetData(); }
+            
+            // 数が足りなければ足す
+            while(this.state.appData.documents.length < this.DOC_COUNT) {
+                 this.state.appData.documents.push({title: `文章 ${this.state.appData.documents.length+1}`, content: ''});
+            }
         }
+        
         resetData() {
             this.state.appData = { documents: [], rules: '' };
             for(let i=1; i<=this.DOC_COUNT; i++) this.state.appData.documents.push({title: `文章 ${i}`, content: ''});
@@ -716,7 +732,7 @@
             this.speechBtn.textContent = "⏹ 停止";
         }
     }
-    new MarkerToolV3_4_0();
+    new MarkerToolV3_4_1();
     </script>
 </body>
 </html>
