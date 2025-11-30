@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>暗記ツール v3.4.3</title>
+    <title>暗記ツール v3.4.4</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
             --text-color: #333; --border-color: #cbd5e0;
-            /* ★更新確認用：ヘッダーをネイビーに変更 */
-            --header-bg: #1e3a8a; --header-text: #ffffff;
-            --button-bg: #1d4ed8; --button-hover-bg: #1e40af;
+            /* ★更新確認用：ヘッダーを赤（エンジ）に変更 */
+            --header-bg: #991b1b; --header-text: #ffffff;
+            --button-bg: #b91c1c; --button-hover-bg: #7f1d1d;
             --highlight-bg: #fffde7; --speech-highlight-bg: #fdff32;
             --toolbar-bg: #e2e8f0;
             --status-ok: #48bb78; --status-saving: #ecc94b;
@@ -30,35 +30,37 @@
         
         header {
             background-color: var(--header-bg); color: var(--header-text);
-            padding: 8px 10px; display: flex; align-items: center; gap: 8px;
-            flex-shrink: 0; z-index: 10; min-height: 50px;
+            padding: 5px 10px; display: flex; align-items: center; gap: 5px;
+            flex-shrink: 0; z-index: 10; min-height: 55px; /* 高さを確保 */
             justify-content: space-between;
         }
         
         .doc-controls { 
-            display: flex; flex-grow: 1; gap: 8px; 
+            display: flex; flex-grow: 1; gap: 5px; 
             max-width: 100%; align-items: center; 
-            overflow: hidden;
+            /* overflow: hidden; を削除（ボタン隠れ防止） */
         }
         
         select#doc-select {
             flex-grow: 1; flex-shrink: 1; min-width: 0;
-            height: 36px; font-size: 16px;
-            border: 1px solid #93c5fd; background: #eff6ff; color: #1e3a8a; 
+            height: 40px; font-size: 16px;
+            border: 1px solid #fca5a5; background: #fef2f2; color: #7f1d1d; 
             padding: 0 5px; border-radius: 4px;
         }
         
+        /* ボタンを大きく、押しやすく */
         button.icon-btn {
-            height: 36px; width: 44px;
+            height: 40px; width: 48px;
             padding: 0; display: flex; justify-content: center; align-items: center;
-            background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.2); 
-            border-radius: 4px; color: white; font-size: 20px; 
+            background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.3); 
+            border-radius: 6px; color: white; font-size: 22px; 
             cursor: pointer; flex-shrink: 0;
+            touch-action: manipulation; /* タッチ反応向上 */
         }
-        button.icon-btn:active { background-color: #1e40af; transform: translateY(1px); }
+        button.icon-btn:active { background-color: #7f1d1d; transform: scale(0.95); }
         
         #save-status {
-            font-size: 11px; color: #bfdbfe; margin-left: 5px; white-space: nowrap;
+            font-size: 11px; color: #fecaca; margin-left: 5px; white-space: nowrap;
             display: flex; align-items: center; gap: 2px; height: 14px;
         }
         #save-status.saved { color: #86efac; font-weight: bold; }
@@ -75,8 +77,8 @@
         }
         .action-btn {
             background: #fff; border: 1px solid #a0aec0; color: #2d3748;
-            font-size: 13px; padding: 0 10px; border-radius: 4px; cursor: pointer;
-            height: 34px; white-space: nowrap; display: flex; align-items: center;
+            font-size: 13px; padding: 0 12px; border-radius: 4px; cursor: pointer;
+            height: 36px; white-space: nowrap; display: flex; align-items: center;
         }
         .action-btn:active { background-color: #cbd5e0; }
 
@@ -87,8 +89,8 @@
         .marker-scroll-row::-webkit-scrollbar { display: none; }
         
         .palette-btn {
-            width: 40px; height: 36px; flex-shrink: 0;
-            font-size: 22px; background-color: #fff; border: 1px solid #a0aec0;
+            width: 44px; height: 40px; flex-shrink: 0;
+            font-size: 24px; background-color: #fff; border: 1px solid #a0aec0;
             border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center;
         }
         .palette-btn:active { background-color: #bee3f8; transform: scale(0.95); }
@@ -142,7 +144,7 @@
             box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px;
         }
         textarea.modal-input { width: 100%; height: 150px; border: 1px solid #cbd5e0; border-radius: 4px; padding: 5px; }
-        input.modal-single-input { width: 100%; height: 40px; font-size: 16px; padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; }
+        input.modal-single-input { width: 100%; height: 45px; font-size: 18px; padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; }
         .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
     </style>
 </head>
@@ -188,7 +190,7 @@
         </main>
     </div>
 
-    <!-- 名前変更モーダル -->
+    <!-- 名前変更・同期用モーダル -->
     <div id="modal-overlay">
         <div class="modal-content" id="sync-modal">
             <h3 id="modal-title" style="margin:0;"></h3>
@@ -214,8 +216,13 @@
     </div>
 
     <script>
-    class MarkerToolV3_4_3 {
+    class MarkerToolV3_4_4 {
         constructor() {
+            // エラーハンドリング（万が一のクラッシュ時にアラートを出す）
+            window.onerror = function(msg, url, line) {
+                alert("エラーが発生しました: " + msg);
+            };
+
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
             this.mainTextArea = document.getElementById('main-text-area');
@@ -279,10 +286,13 @@
                 const btn = document.createElement('div');
                 btn.className = 'palette-btn';
                 btn.textContent = style.value;
-                btn.addEventListener('mousedown', (e) => {
+                // スマホ用にtouchstartも追加（反応速度向上）
+                const handler = (e) => {
                     e.preventDefault(); 
                     if(!this.state.isProcessing) this.applyMarkerToSelection(style);
-                });
+                };
+                btn.addEventListener('mousedown', handler);
+                btn.addEventListener('touchstart', handler);
                 this.fixedPalette.appendChild(btn);
             });
         }
@@ -316,8 +326,13 @@
             
             this.docSelect.addEventListener('change', (e) => this.switchDocument(parseInt(e.target.value, 10)));
             
-            // ★変更点：名前変更ボタンで専用モーダルを開く
-            this.renameDocBtn.addEventListener('click', () => this.openRenameModal());
+            // ★鉛筆ボタン：クリックとタッチ両方に対応させる
+            const renameHandler = (e) => {
+                e.preventDefault(); // ダブルタップズームなどを防ぐ
+                this.openRenameModal();
+            };
+            this.renameDocBtn.addEventListener('click', renameHandler);
+            this.renameDocBtn.addEventListener('touchend', renameHandler);
             
             this.managerHeader.addEventListener('click', () => this.toggleManagerPanel());
             this.copyTextBtn.addEventListener('click', () => this.copyPlainText());
@@ -349,10 +364,17 @@
             this.ioActionBtn.addEventListener('click', () => this.handleIoAction());
         }
 
-        // ★新機能：名前変更モーダル
+        // ★名前変更モーダル（強制表示）
         openRenameModal() {
+            // 万が一データが取れなくても、画面だけは出して安心させる
+            let currentTitle = "";
             const cur = this.state.appData.documents[this.state.currentDocIndex];
-            if(!cur) return;
+            if (cur) {
+                currentTitle = cur.title;
+            } else {
+                // データ修復を試みる
+                currentTitle = `文章 ${this.state.currentDocIndex + 1}`;
+            }
 
             this.modalOverlay.style.display = 'flex';
             this.modalTitle.textContent = "名前の変更";
@@ -363,16 +385,19 @@
             this.ioTextarea.style.display = 'none';
             this.renameContainer.style.display = 'block';
             
-            this.renameInput.value = cur.title;
+            this.renameInput.value = currentTitle;
+            this.renameInput.focus(); // フォーカスを当てる
             
             this.ioActionBtn.style.display = 'inline-block';
             this.ioActionBtn.textContent = "決定";
             
-            // 決定ボタンの動作を上書きするためにフラグか専用メソッドを使う
+            // 決定ボタンの動作を上書き
             this.ioActionBtn.onclick = () => {
                 const newName = this.renameInput.value;
                 if(newName && newName.trim()) {
-                    cur.title = newName.trim();
+                    if (this.state.appData.documents[this.state.currentDocIndex]) {
+                        this.state.appData.documents[this.state.currentDocIndex].title = newName.trim();
+                    }
                     this.updateDocSelect();
                     this.saveToLocalStorage();
                     this.closeSyncModal();
@@ -777,7 +802,7 @@
             this.speechBtn.textContent = "⏹ 停止";
         }
     }
-    new MarkerToolV3_4_3();
+    new MarkerToolV3_4_4();
     </script>
 </body>
 </html>
