@@ -2,36 +2,29 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <!-- 拡大縮小を許可 (user-scalable=yes) -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>暗記ツール v3.3.8</title>
+    <title>暗記ツール v3.3.9</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
             --text-color: #333; --border-color: #cbd5e0;
-            /* ★更新確認用：ヘッダーを青色に変更 */
             --header-bg: #1a365d; --header-text: #ffffff;
             --button-bg: #2c5282; --button-hover-bg: #2a4365;
             --highlight-bg: #fffde7; --speech-highlight-bg: #fdff32;
             --toolbar-bg: #e2e8f0;
+            --status-ok: #48bb78; --status-saving: #ecc94b;
         }
         * { box-sizing: border-box; }
         
-        /* 画面全体を固定する最強のレイアウト */
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0; background-color: var(--bg-color); color: var(--text-color);
-            /* スクロール禁止（アプリ領域のみ固定） */
-            overflow: hidden; 
-            height: 100vh; width: 100vw;
+            overflow: hidden; height: 100vh; width: 100vw;
         }
 
-        /* アプリ全体を覆うコンテナ（絶対配置） */
         #app-root {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            display: flex; flex-direction: column;
-            overflow: hidden;
-            z-index: 1;
+            display: flex; flex-direction: column; overflow: hidden; z-index: 1;
         }
         
         header {
@@ -52,6 +45,13 @@
             background-color: var(--button-bg); border: none; border-radius: 4px;
             color: white; font-size: 18px; cursor: pointer; flex-shrink: 0;
         }
+        
+        /* 保存ステータス表示 */
+        #save-status {
+            font-size: 11px; color: #cbd5e0; margin-left: 5px; white-space: nowrap;
+            display: flex; align-items: center; gap: 2px;
+        }
+        #save-status.saved { color: var(--status-ok); font-weight: bold; }
         
         #toolbar-container {
             background-color: var(--toolbar-bg); padding: 6px 8px;
@@ -85,16 +85,14 @@
 
         main {
             display: flex; flex-direction: column; flex-grow: 1;
-            padding: 0; overflow: hidden; position: relative;
-            min-height: 0;
+            padding: 0; overflow: hidden; position: relative; min-height: 0;
         }
         .panel.main { flex-grow: 1; position: relative; background: var(--main-bg); display: flex; flex-direction: column; min-height: 0; }
         
         #main-text-area {
             flex-grow: 1; padding: 15px; font-size: 16px; line-height: 1.8;
             white-space: pre-wrap; word-wrap: break-word; 
-            overflow-y: auto; /* ここでスクロールさせる */
-            outline: none; -webkit-user-select: text; user-select: text;
+            overflow-y: auto; outline: none; -webkit-user-select: text; user-select: text;
         }
         #main-text-area:empty::before {
             content: attr(placeholder); color: #a0aec0; pointer-events: none; display: block;
@@ -138,16 +136,19 @@
     </style>
 </head>
 <body>
-    <!-- アプリ全体を囲むルート要素 -->
     <div id="app-root">
         <header>
-            <h1>暗記ツール v3.3.8</h1>
+            <h1>暗記ツール v3.3.9</h1>
             <div class="doc-controls">
                 <select id="doc-select"></select>
                 <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
                 <button id="sync-btn" class="icon-btn" title="データ同期">☁</button>
+                <button id="manual-save-btn" class="icon-btn" title="手動保存" style="background:#2f855a;">💾</button>
             </div>
-            <span id="char-counter" style="font-size:12px; min-width:60px; text-align:right;">0文字</span>
+            <div style="text-align:right;">
+                <div id="char-counter" style="font-size:11px;">0文字</div>
+                <div id="save-status"></div>
+            </div>
         </header>
 
         <div id="toolbar-container">
@@ -193,19 +194,21 @@
     </div>
 
     <script>
-    class MarkerToolV3_3_8 {
+    class MarkerToolV3_3_9 {
         constructor() {
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
             this.mainTextArea = document.getElementById('main-text-area');
             this.markerManagerList = document.getElementById('marker-manager-list');
             this.charCounter = document.getElementById('char-counter');
+            this.saveStatus = document.getElementById('save-status');
             this.speechBtn = document.getElementById('speech-btn');
             this.managerPanel = document.getElementById('manager-panel');
             this.managerHeader = document.getElementById('manager-header');
             this.toggleManagerBtn = document.getElementById('toggle-manager-btn');
             this.copyTextBtn = document.getElementById('copy-text-btn');
             this.pasteTextBtn = document.getElementById('paste-text-btn');
+            this.manualSaveBtn = document.getElementById('manual-save-btn');
             this.syncBtn = document.getElementById('sync-btn');
             this.toggleMarkersCb = document.getElementById('toggle-markers-cb');
             this.fixedPalette = document.getElementById('fixed-marker-palette');
@@ -260,10 +263,21 @@
         }
 
         bindEvents() {
-            this.mainTextArea.addEventListener('input', () => {
+            // ★ Android対応：複数のタイミングで保存をかける
+            const saveHandler = () => {
                 this.updateCharCount();
                 this.saveState();
+            };
+            this.mainTextArea.addEventListener('input', saveHandler);
+            this.mainTextArea.addEventListener('compositionend', saveHandler); // 変換確定時
+            this.mainTextArea.addEventListener('blur', saveHandler); // フォーカス外れ
+            this.mainTextArea.addEventListener('keyup', saveHandler); // キーアップ時も念のため
+            
+            // アプリ切り替え時など
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') saveHandler();
             });
+
             this.mainTextArea.addEventListener('click', (e) => this.handleMainAreaClick(e));
             document.addEventListener('click', (e) => {
                 if (!e.target.closest('.marker') && !e.target.closest('#fixed-marker-palette')) {
@@ -282,6 +296,12 @@
             this.managerHeader.addEventListener('click', () => this.toggleManagerPanel());
             this.copyTextBtn.addEventListener('click', () => this.copyPlainText());
             
+            // 手動保存ボタン
+            this.manualSaveBtn.addEventListener('click', () => {
+                this.saveState();
+                alert("保存しました！");
+            });
+
             this.pasteTextBtn.addEventListener('click', () => {
                 this.mainTextArea.focus();
                 try {
@@ -426,6 +446,7 @@
 
         applyRules() {
             const originalText = this.getOriginalText();
+            // 初回ロード時以外で空の場合はガード
             if (this.mainTextArea.childNodes.length > 0 && originalText.length === 0) return;
 
             this.state.appData.documents[this.state.currentDocIndex].content = originalText;
@@ -611,6 +632,15 @@
             const text = this.getOriginalText();
             this.state.appData.documents[this.state.currentDocIndex].content = text;
             localStorage.setItem('markerToolState_v3_3', JSON.stringify(this.state.appData));
+            
+            // 保存ステータス更新
+            this.saveStatus.textContent = "✅ 保存済";
+            this.saveStatus.classList.add('saved');
+            clearTimeout(this.saveTimer);
+            this.saveTimer = setTimeout(() => {
+                this.saveStatus.textContent = "";
+                this.saveStatus.classList.remove('saved');
+            }, 2000);
         }
         
         loadState() {
@@ -651,7 +681,7 @@
             this.speechBtn.textContent = "⏹ 停止";
         }
     }
-    new MarkerToolV3_3_8();
+    new MarkerToolV3_3_9();
     </script>
 </body>
 </html>
