@@ -2,8 +2,9 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗記ツール v3.3.6</title>
+    <!-- ★修正：user-scalable=yes に変更し、拡大縮小を可能にしました -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>暗記ツール v3.3.7</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
@@ -17,75 +18,75 @@
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0; background-color: var(--bg-color); color: var(--text-color);
-            display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
+            /* ★修正：100dvhに変更（スマホのアドレスバーによるズレを防止） */
+            height: 100dvh;
+            overflow: hidden;
         }
         
         header {
             background-color: var(--header-bg); color: var(--header-text);
-            padding: 5px 10px; display: flex; align-items: center; gap: 8px;
-            flex-shrink: 0; z-index: 10; height: 44px; justify-content: space-between;
+            /* ★修正：高さ固定を廃止し、内容に合わせて伸びるように変更 */
+            padding: 8px 10px; display: flex; align-items: center; gap: 8px;
+            flex-shrink: 0; z-index: 10; min-height: 44px; justify-content: space-between;
+            flex-wrap: wrap; /* 画面が狭くても折り返す */
         }
         header h1 { font-size: 14px; margin: 0; display: none; }
         @media(min-width: 600px) { header h1 { display: block; } }
 
-        .doc-controls { display: flex; flex-grow: 1; gap: 5px; max-width: 100%; }
+        .doc-controls { display: flex; flex-grow: 1; gap: 5px; max-width: 100%; align-items: center; }
         select#doc-select {
-            flex-grow: 1; max-width: 200px; height: 30px; font-size: 14px;
+            flex-grow: 1; max-width: 100%; height: 34px; font-size: 16px; /* 16pxにするとスマホでズームされない */
             border: 1px solid #718096; background: #edf2f7; color: #1a202c; padding: 0 5px;
+            border-radius: 4px;
         }
         button.icon-btn {
-            height: 30px; width: 34px; padding: 0; display: flex; justify-content: center; align-items: center;
+            height: 34px; width: 40px; padding: 0; display: flex; justify-content: center; align-items: center;
             background-color: var(--button-bg); border: none; border-radius: 4px;
-            color: white; font-size: 16px; cursor: pointer;
+            color: white; font-size: 18px; cursor: pointer; flex-shrink: 0;
         }
         
         #toolbar-container {
-            background-color: var(--toolbar-bg); padding: 4px 8px;
+            background-color: var(--toolbar-bg); padding: 6px 8px;
             border-bottom: 1px solid var(--border-color);
-            display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;
+            display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
         }
         
         .action-row {
-            display: flex; align-items: center; gap: 8px; overflow-x: auto;
+            display: flex; align-items: center; gap: 10px; overflow-x: auto;
             white-space: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 2px;
         }
         .action-btn {
             background: #fff; border: 1px solid #a0aec0; color: #2d3748;
-            font-size: 12px; padding: 4px 8px; border-radius: 4px; cursor: pointer;
-            height: 28px; white-space: nowrap; display: flex; align-items: center;
+            font-size: 13px; padding: 0 10px; border-radius: 4px; cursor: pointer;
+            height: 34px; white-space: nowrap; display: flex; align-items: center;
         }
         .action-btn:active { background-color: #cbd5e0; }
-        .action-btn input { margin-right: 4px; }
+        .action-btn input { margin-right: 6px; transform: scale(1.2); }
 
         .marker-scroll-row {
-            display: flex; gap: 6px; overflow-x: auto; padding: 2px 0;
+            display: flex; gap: 8px; overflow-x: auto; padding: 4px 0;
             -webkit-overflow-scrolling: touch; scrollbar-width: none;
         }
         .marker-scroll-row::-webkit-scrollbar { display: none; }
         
         .palette-btn {
-            width: 36px; height: 32px; flex-shrink: 0;
-            font-size: 20px; background-color: #fff; border: 1px solid #a0aec0;
+            width: 40px; height: 36px; flex-shrink: 0;
+            font-size: 22px; background-color: #fff; border: 1px solid #a0aec0;
             border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center;
         }
         .palette-btn:active { background-color: #bee3f8; transform: scale(0.95); }
 
-        /* メインエリアのスクロール修正 */
         main {
             display: flex; flex-direction: column; flex-grow: 1;
             padding: 0; overflow: hidden; position: relative;
-            min-height: 0; /* Flexboxの入れ子でスクロールさせるための重要設定 */
+            min-height: 0;
         }
-        .panel.main {
-            flex-grow: 1; position: relative; background: var(--main-bg);
-            display: flex; flex-direction: column; min-height: 0;
-        }
+        .panel.main { flex-grow: 1; position: relative; background: var(--main-bg); display: flex; flex-direction: column; min-height: 0; }
         
         #main-text-area {
-            flex-grow: 1; padding: 15px; font-size: 16px; line-height: 1.7;
-            white-space: pre-wrap; word-wrap: break-word; 
-            overflow-y: auto; /* ここでスクロール */
-            outline: none;
+            flex-grow: 1; padding: 15px; font-size: 16px; line-height: 1.8;
+            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
             -webkit-user-select: text; user-select: text;
         }
         #main-text-area:empty::before {
@@ -96,21 +97,21 @@
             flex-shrink: 0; border-top: 1px solid var(--border-color); background: #f7fafc;
             height: 35vh; transition: height 0.3s; display: flex; flex-direction: column;
         }
-        .panel.manager.closed { height: 36px; }
+        .panel.manager.closed { height: 40px; }
         .panel-header {
-            padding: 0 10px; height: 36px; display: flex; align-items: center; justify-content: space-between;
-            background-color: #edf2f7; cursor: pointer; font-size: 13px; font-weight: bold;
+            padding: 0 10px; height: 40px; display: flex; align-items: center; justify-content: space-between;
+            background-color: #edf2f7; cursor: pointer; font-size: 14px; font-weight: bold;
             border-bottom: 1px solid #e2e8f0;
         }
         #marker-manager-list { overflow-y: auto; flex-grow: 1; padding: 5px; }
         
         .manager-item {
-            display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #e2e8f0;
-            font-size: 13px; background: #fff;
+            display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0;
+            font-size: 14px; background: #fff;
         }
-        .manager-item-icon { width: 30px; text-align: center; font-size: 1.2em; }
+        .manager-item-icon { width: 34px; text-align: center; font-size: 1.3em; }
         .manager-item-text { flex-grow: 1; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .manager-item-delete { border: none; background: transparent; color: #a0aec0; padding: 5px; font-size: 1.2em; }
+        .manager-item-delete { border: none; background: transparent; color: #a0aec0; padding: 8px; font-size: 1.3em; }
 
         .marker { cursor: pointer; border-radius: 3px; letter-spacing: 0.05em; border-bottom: 2px solid rgba(0,0,0,0.1); }
         .marker.reveal { background-color: var(--highlight-bg); letter-spacing: normal; color: inherit !important; border-bottom: none; }
@@ -131,7 +132,7 @@
 </head>
 <body>
     <header>
-        <h1>暗記ツール v3.3.6</h1>
+        <h1>暗記ツール v3.3.7</h1>
         <div class="doc-controls">
             <select id="doc-select"></select>
             <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
@@ -182,7 +183,7 @@
     </div>
 
     <script>
-    class MarkerToolV3_3_6 {
+    class MarkerToolV3_3_7 {
         constructor() {
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
@@ -299,15 +300,12 @@
             this.saveState();
         }
 
-        // ★新機能：選択範囲のテキストを取得する際、隣にあるマーカー（絵文字）を元のテキストに戻して計算する
-        // これにより、「🧟🧟」の隣を選択しても、ルール上は「一時」として記録され、正しく検索できる。
         getCleanTextFromRange(range) {
             const clone = range.cloneContents();
             let text = "";
             const extract = (node) => {
                 if (node.nodeType === Node.TEXT_NODE) return node.textContent;
                 if (node.nodeType === Node.ELEMENT_NODE) {
-                    // クローン内のマーカー要素から元のテキストを取り出す
                     if (node.classList.contains('marker')) {
                         return node.dataset.originalText || '';
                     }
@@ -329,13 +327,11 @@
             const hiddenText = range.toString().trim();
             if (!hiddenText) return;
 
-            // 前後の文脈を取得する際、DOMから絵文字ではなく「元のテキスト」を復元して取得する
             const rangeBefore = document.createRange();
             rangeBefore.setStart(this.mainTextArea, 0);
             rangeBefore.setEnd(range.startContainer, range.startOffset);
             
             const textBefore = this.getCleanTextFromRange(rangeBefore);
-            // 文字列をスプレッド構文で配列化して後ろから取る
             const prefix = [...textBefore].slice(-this.state.anchorLength).join('');
             
             const rangeAfter = document.createRange();
@@ -403,23 +399,13 @@
 
         getOriginalText() {
             const extract = (node) => {
-                if (node.nodeType === Node.TEXT_NODE) {
-                    return node.textContent;
-                }
+                if (node.nodeType === Node.TEXT_NODE) return node.textContent;
                 if (node.nodeType === Node.ELEMENT_NODE) {
-                    if (node.classList.contains('marker')) {
-                        return node.dataset.originalText || '';
-                    }
-                    if (node.tagName === 'BR') {
-                        return '\n';
-                    }
+                    if (node.classList.contains('marker')) return node.dataset.originalText || '';
+                    if (node.tagName === 'BR') return '\n';
                     let childText = '';
-                    node.childNodes.forEach(child => {
-                        childText += extract(child);
-                    });
-                    if (['DIV', 'P', 'LI'].includes(node.tagName) && childText.length > 0) {
-                        return childText + '\n';
-                    }
+                    node.childNodes.forEach(child => childText += extract(child));
+                    if (['DIV', 'P', 'LI'].includes(node.tagName) && childText.length > 0) return childText + '\n';
                     return childText;
                 }
                 return '';
@@ -428,239 +414,4 @@
             return text.replace(/\n+$/, '').replace(/^\n+/, '');
         }
 
-        applyRules() {
-            const originalText = this.getOriginalText();
-            if (this.mainTextArea.childNodes.length > 0 && originalText.length === 0) {
-                 return; 
-            }
-
-            this.state.appData.documents[this.state.currentDocIndex].content = originalText;
-            this.mainTextArea.innerHTML = '';
-            
-            let segments = [{ text: originalText, type: 'text' }];
-            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
-            const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
-            
-            targetRules.forEach(rule => {
-                try {
-                    const ruleParts = rule.split(' -> ');
-                    const hiddenText = ruleParts[1].split(' %% ')[0];
-                    const styleString = ruleParts[1].split(' %% ')[1];
-                    const prefix = ruleParts[0].split(' :: ')[1].split('...')[0];
-                    const fullAnchor = prefix + hiddenText;
-                    
-                    for (let i = 0; i < segments.length; i++) {
-                        if (segments[i].type === 'text') {
-                            const index = segments[i].text.indexOf(fullAnchor);
-                            if (index > -1) {
-                                const before = segments[i].text.substring(0, index + prefix.length);
-                                const after = segments[i].text.substring(index + prefix.length + hiddenText.length);
-                                segments.splice(i, 1, 
-                                    { text: before, type: 'text' }, 
-                                    { text: hiddenText, type: 'marker', style: styleString, fullRule: rule }, 
-                                    { text: after, type: 'text' }
-                                );
-                                break;
-                            }
-                        }
-                    }
-                } catch(e) {}
-            });
-
-            segments.forEach(seg => {
-                if (seg.type === 'text') {
-                    const lines = seg.text.split('\n');
-                    lines.forEach((line, idx) => {
-                        if(line) this.mainTextArea.appendChild(document.createTextNode(line));
-                        if(idx < lines.length - 1) {
-                            this.mainTextArea.appendChild(document.createElement('br'));
-                        }
-                    });
-                } else if(seg.type === 'marker') {
-                    const markerSpan = document.createElement('span');
-                    markerSpan.className = 'marker';
-                    markerSpan.dataset.originalText = seg.text;
-                    markerSpan.dataset.style = seg.style;
-                    markerSpan.dataset.fullRule = seg.fullRule;
-                    
-                    const type = seg.style.charAt(0);
-                    const value = seg.style.substring(1);
-                    if (type === 'E') { markerSpan.textContent = value.repeat(seg.text.length); }
-                    
-                    this.mainTextArea.appendChild(markerSpan);
-                }
-            });
-
-            this.renderMarkerManager();
-            this.updateCharCount();
-            this.saveState();
-            
-            if (!this.toggleMarkersCb.checked) this.toggleAllMarkersVisibility(false);
-        }
-
-        renderMarkerManager() {
-            this.markerManagerList.innerHTML = '';
-            const allRules = this.state.appData.rules.split('\n').filter(Boolean);
-            const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + ' ::'));
-
-            if(targetRules.length === 0) {
-                this.markerManagerList.innerHTML = '<p style="text-align:center; color:#718096; padding: 10px;">マーカーはありません</p>';
-                return;
-            }
-            targetRules.forEach(rule => {
-                const item = document.createElement('div');
-                item.className = 'manager-item';
-                const parts = rule.split(' -> ');
-                const hidden = parts[1].split(' %% ')[0];
-                const icon = parts[1].split(' %% ')[1].substring(1);
-                item.innerHTML = `
-                    <div class="manager-item-icon">${icon}</div>
-                    <div class="manager-item-text">${hidden}</div>
-                    <button class="manager-item-delete">×</button>
-                `;
-                item.querySelector('.manager-item-delete').addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    if(confirm("削除しますか？")) this.removeRule(rule); 
-                });
-                item.addEventListener('click', () => {
-                     const el = this.mainTextArea.querySelector(`.marker[data-full-rule="${CSS.escape(rule)}"]`);
-                     if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); this.toggleMarkerReveal(el); }
-                });
-                this.markerManagerList.appendChild(item);
-            });
-        }
-        
-        removeRule(rule) {
-            const rules = this.state.appData.rules.split('\n');
-            const idx = rules.indexOf(rule);
-            if (idx > -1) { rules.splice(idx, 1); this.state.appData.rules = rules.join('\n'); this.applyRules(); }
-        }
-        
-        copyPlainText() {
-            navigator.clipboard.writeText(this.getOriginalText()).then(() => alert("コピーしました"));
-        }
-        
-        openSyncModal() {
-            this.modalOverlay.style.display = 'flex';
-            this.modalChoices.style.display = 'flex';
-            this.ioTextarea.style.display = 'none';
-            this.ioActionBtn.style.display = 'none';
-            this.modalDesc.textContent = "データのバックアップ（書き出し）や復元（読み込み）を行います。";
-        }
-        setupExportModal() {
-            this.modalChoices.style.display = 'none';
-            this.modalDesc.textContent = "以下のデータをすべてコピーして保存してください。";
-            this.ioTextarea.style.display = 'block';
-            this.ioTextarea.readOnly = true;
-            this.ioTextarea.value = JSON.stringify(this.state.appData);
-            this.ioActionBtn.style.display = 'inline-block';
-            this.ioActionBtn.textContent = "コピーする";
-        }
-        setupImportModal() {
-            this.modalChoices.style.display = 'none';
-            this.modalDesc.textContent = "バックアップデータを貼り付けてください（現在のデータは上書きされます）。";
-            this.ioTextarea.style.display = 'block';
-            this.ioTextarea.readOnly = false;
-            this.ioTextarea.value = '';
-            this.ioActionBtn.style.display = 'inline-block';
-            this.ioActionBtn.textContent = "上書き読み込み";
-        }
-        closeSyncModal() { this.modalOverlay.style.display = 'none'; }
-        
-        handleIoAction() {
-            if (this.ioActionBtn.textContent.includes('コピー')) {
-                navigator.clipboard.writeText(this.ioTextarea.value);
-                alert("コピーしました");
-            } else {
-                try {
-                    const data = JSON.parse(this.ioTextarea.value);
-                    if (data.documents) {
-                        if(confirm("本当に上書きしますか？")) {
-                            this.state.appData = data;
-                            this.saveState();
-                            this.updateDocSelect();
-                            this.updateDocumentView();
-                            this.closeSyncModal();
-                            alert("完了しました");
-                        }
-                    } else { alert("データ形式が正しくありません"); }
-                } catch(e) { alert("エラー: 正しいJSONデータではありません"); }
-            }
-        }
-        
-        renameDocument() {
-            const cur = this.state.appData.documents[this.state.currentDocIndex];
-            const name = prompt("新しいタイトル:", cur.title);
-            if(name) { cur.title = name; this.updateDocSelect(); this.saveState(); }
-        }
-        updateDocSelect() {
-            this.docSelect.innerHTML = '';
-            this.state.appData.documents.forEach((d, i) => {
-                const o = document.createElement('option');
-                o.value = i; o.textContent = d.title;
-                this.docSelect.appendChild(o);
-            });
-            this.docSelect.value = this.state.currentDocIndex;
-        }
-        switchDocument(i) {
-            this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
-            this.saveState();
-            this.state.currentDocIndex = i;
-            this.updateDocumentView();
-        }
-        updateDocumentView() {
-            this.docSelect.value = this.state.currentDocIndex;
-            this.state.appData.documents[this.state.currentDocIndex].content = this.state.appData.documents[this.state.currentDocIndex].content || '';
-            this.applyRules();
-        }
-
-        updateCharCount() { this.charCounter.textContent = this.getOriginalText().length + "文字"; }
-        
-        saveState() {
-            const text = this.getOriginalText();
-            this.state.appData.documents[this.state.currentDocIndex].content = text;
-            localStorage.setItem('markerToolState_v3_3', JSON.stringify(this.state.appData));
-        }
-        
-        loadState() {
-            try { 
-                this.state.appData = JSON.parse(localStorage.getItem('markerToolState_v3_3')); 
-            } catch(e) {}
-            if(!this.state.appData || !this.state.appData.documents) this.resetData();
-        }
-        resetData() {
-            this.state.appData = { documents: [], rules: '' };
-            for(let i=1; i<=this.DOC_COUNT; i++) this.state.appData.documents.push({title: `文章 ${i}`, content: ''});
-        }
-        toggleManagerPanel() {
-            this.managerPanel.classList.toggle('closed');
-            this.toggleManagerBtn.textContent = this.managerPanel.classList.contains('closed') ? '▲' : '▼';
-        }
-
-        initSpeech() { if(!window.speechSynthesis) this.speechBtn.disabled = true; }
-        toggleSpeech() {
-            if(this.state.isSpeaking) {
-                window.speechSynthesis.cancel();
-                this.state.isSpeaking = false;
-                this.speechBtn.textContent = "▶ 読上";
-                return;
-            }
-            const text = this.getOriginalText();
-            if(!text || text.trim() === '') {
-                alert("読み上げるテキストがありません");
-                return;
-            }
-            window.speechSynthesis.cancel();
-            const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'ja-JP'; 
-            u.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
-            u.onerror = (e) => { console.error("Speech error", e); this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
-            window.speechSynthesis.speak(u);
-            this.state.isSpeaking = true;
-            this.speechBtn.textContent = "⏹ 停止";
-        }
-    }
-    new MarkerToolV3_3_6();
-    </script>
-</body>
-</html>
+        applyRules
