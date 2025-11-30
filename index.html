@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗記ツール v3.3.5</title>
+    <title>暗記ツール v3.3.6</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
@@ -70,15 +70,22 @@
         }
         .palette-btn:active { background-color: #bee3f8; transform: scale(0.95); }
 
+        /* メインエリアのスクロール修正 */
         main {
             display: flex; flex-direction: column; flex-grow: 1;
             padding: 0; overflow: hidden; position: relative;
+            min-height: 0; /* Flexboxの入れ子でスクロールさせるための重要設定 */
         }
-        .panel.main { flex-grow: 1; position: relative; background: var(--main-bg); }
+        .panel.main {
+            flex-grow: 1; position: relative; background: var(--main-bg);
+            display: flex; flex-direction: column; min-height: 0;
+        }
         
         #main-text-area {
             flex-grow: 1; padding: 15px; font-size: 16px; line-height: 1.7;
-            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
+            white-space: pre-wrap; word-wrap: break-word; 
+            overflow-y: auto; /* ここでスクロール */
+            outline: none;
             -webkit-user-select: text; user-select: text;
         }
         #main-text-area:empty::before {
@@ -124,7 +131,7 @@
 </head>
 <body>
     <header>
-        <h1>暗記ツール v3.3.5</h1>
+        <h1>暗記ツール v3.3.6</h1>
         <div class="doc-controls">
             <select id="doc-select"></select>
             <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
@@ -175,7 +182,7 @@
     </div>
 
     <script>
-    class MarkerToolV3_3_5 {
+    class MarkerToolV3_3_6 {
         constructor() {
             this.docSelect = document.getElementById('doc-select');
             this.renameDocBtn = document.getElementById('rename-doc-btn');
@@ -253,7 +260,6 @@
                 }
             });
             
-            // 貼り付け制御（書式を消してテキストのみにする）
             this.mainTextArea.addEventListener('paste', (e) => {
                 e.preventDefault();
                 const text = (e.clipboardData || window.clipboardData).getData('text');
@@ -265,7 +271,6 @@
             this.managerHeader.addEventListener('click', () => this.toggleManagerPanel());
             this.copyTextBtn.addEventListener('click', () => this.copyPlainText());
             
-            // 貼り付けボタン
             this.pasteTextBtn.addEventListener('click', () => {
                 this.mainTextArea.focus();
                 try {
@@ -294,6 +299,28 @@
             this.saveState();
         }
 
+        // ★新機能：選択範囲のテキストを取得する際、隣にあるマーカー（絵文字）を元のテキストに戻して計算する
+        // これにより、「🧟🧟」の隣を選択しても、ルール上は「一時」として記録され、正しく検索できる。
+        getCleanTextFromRange(range) {
+            const clone = range.cloneContents();
+            let text = "";
+            const extract = (node) => {
+                if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    // クローン内のマーカー要素から元のテキストを取り出す
+                    if (node.classList.contains('marker')) {
+                        return node.dataset.originalText || '';
+                    }
+                    let t = "";
+                    node.childNodes.forEach(c => t += extract(c));
+                    return t;
+                }
+                return "";
+            };
+            clone.childNodes.forEach(node => text += extract(node));
+            return text;
+        }
+
         applyMarkerToSelection(style) {
             const selection = window.getSelection();
             if (!selection.rangeCount || selection.isCollapsed) return;
@@ -302,22 +329,21 @@
             const hiddenText = range.toString().trim();
             if (!hiddenText) return;
 
-            // 絵文字対応: スプレッド構文で文字数カウント
+            // 前後の文脈を取得する際、DOMから絵文字ではなく「元のテキスト」を復元して取得する
             const rangeBefore = document.createRange();
             rangeBefore.setStart(this.mainTextArea, 0);
             rangeBefore.setEnd(range.startContainer, range.startOffset);
             
-            const textBefore = rangeBefore.toString();
-            const textBeforeArray = [...textBefore]; 
-            const prefix = textBeforeArray.slice(-this.state.anchorLength).join('');
+            const textBefore = this.getCleanTextFromRange(rangeBefore);
+            // 文字列をスプレッド構文で配列化して後ろから取る
+            const prefix = [...textBefore].slice(-this.state.anchorLength).join('');
             
             const rangeAfter = document.createRange();
             rangeAfter.setStart(range.endContainer, range.endOffset);
             rangeAfter.setEnd(this.mainTextArea, this.mainTextArea.childNodes.length);
             
-            const textAfter = rangeAfter.toString();
-            const textAfterArray = [...textAfter];
-            const suffix = textAfterArray.slice(0, this.state.anchorLength).join('');
+            const textAfter = this.getCleanTextFromRange(rangeAfter);
+            const suffix = [...textAfter].slice(0, this.state.anchorLength).join('');
 
             const styleString = `%% ${style.type}${style.value}`;
             const rule = `${this.state.currentDocIndex} :: ${prefix}...${suffix} -> ${hiddenText} ${styleString}`;
@@ -375,28 +401,22 @@
             });
         }
 
-        // ★★★ 根本解決：見た目（innerText）ではなく、データ構造（textContent）から文字を復元する ★★★
         getOriginalText() {
-            // 再帰的にノードを探索してテキストを結合する関数
             const extract = (node) => {
                 if (node.nodeType === Node.TEXT_NODE) {
                     return node.textContent;
                 }
                 if (node.nodeType === Node.ELEMENT_NODE) {
-                    // マーカーなら隠れている文字を返す
                     if (node.classList.contains('marker')) {
                         return node.dataset.originalText || '';
                     }
-                    // BRタグは改行
                     if (node.tagName === 'BR') {
                         return '\n';
                     }
-                    // 子要素を結合
                     let childText = '';
                     node.childNodes.forEach(child => {
                         childText += extract(child);
                     });
-                    // DIVやPタグのブロック終了後は改行を入れる（簡易対応）
                     if (['DIV', 'P', 'LI'].includes(node.tagName) && childText.length > 0) {
                         return childText + '\n';
                     }
@@ -404,18 +424,12 @@
                 }
                 return '';
             };
-            
-            // 画面外クローンなどは使わず、今のメインエリアを直接解析する
-            // これならブラウザの表示・非表示判定に左右されない
             let text = extract(this.mainTextArea);
-            
-            // 余計な連続改行を整理
             return text.replace(/\n+$/, '').replace(/^\n+/, '');
         }
 
         applyRules() {
             const originalText = this.getOriginalText();
-            // 万が一データが空の場合は、誤って消さないようにガード
             if (this.mainTextArea.childNodes.length > 0 && originalText.length === 0) {
                  return; 
             }
@@ -631,27 +645,22 @@
                 this.speechBtn.textContent = "▶ 読上";
                 return;
             }
-            // ★ getOriginalTextの修正により、ここも正常にテキストが取得できるようになります
             const text = this.getOriginalText();
             if(!text || text.trim() === '') {
                 alert("読み上げるテキストがありません");
                 return;
             }
-            
-            // 一度キャンセルしてキューをクリア
             window.speechSynthesis.cancel();
-            
             const u = new SpeechSynthesisUtterance(text);
-            u.lang = 'ja-JP'; // 言語を明示
+            u.lang = 'ja-JP'; 
             u.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
             u.onerror = (e) => { console.error("Speech error", e); this.state.isSpeaking = false; this.speechBtn.textContent = "▶ 読上"; };
-            
             window.speechSynthesis.speak(u);
             this.state.isSpeaking = true;
             this.speechBtn.textContent = "⏹ 停止";
         }
     }
-    new MarkerToolV3_3_5();
+    new MarkerToolV3_3_6();
     </script>
 </body>
 </html>
