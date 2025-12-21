@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>暗記ツール v3.8.0 - Perfect Integration</title>
+    <title>暗記ツール v3.8.5 - Perfect Cloud & Context</title>
     <style>
         :root {
             --bg-color: #f4f4f9; --main-bg: #ffffff;
@@ -15,57 +15,99 @@
             --status-ok: #48bb78;
         }
         * { box-sizing: border-box; }
+        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             margin: 0; background-color: var(--bg-color); color: var(--text-color);
             overflow: hidden; height: 100vh; width: 100vw;
         }
+
         #app-root {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             display: flex; flex-direction: column; overflow: hidden; z-index: 1;
         }
+        
         header {
             background-color: var(--header-bg); color: var(--header-text);
             padding: 8px 10px; display: flex; align-items: center; gap: 8px;
-            flex-shrink: 0; z-index: 10; min-height: 50px; justify-content: space-between;
+            flex-shrink: 0; z-index: 10; min-height: 50px;
+            justify-content: space-between;
         }
-        .doc-controls { display: flex; flex-grow: 1; gap: 8px; align-items: center; overflow: hidden; }
+        
+        .doc-controls { 
+            display: flex; flex-grow: 1; gap: 8px; 
+            max-width: 100%; align-items: center; overflow: hidden;
+        }
+        
         select#doc-select {
-            flex-grow: 1; height: 36px; font-size: 16px; border: 1px solid #6b7280;
-            background: #f3f4f6; color: #111827; padding: 0 5px; border-radius: 4px;
+            flex-grow: 1; flex-shrink: 1; min-width: 0;
+            height: 36px; font-size: 16px;
+            border: 1px solid #6b7280; background: #f3f4f6; color: #111827; 
+            padding: 0 5px; border-radius: 4px;
         }
+        
         button.icon-btn {
-            height: 36px; width: 44px; display: flex; justify-content: center; align-items: center;
+            height: 36px; width: 44px;
+            padding: 0; display: flex; justify-content: center; align-items: center;
             background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.2); 
-            border-radius: 4px; color: white; font-size: 20px; cursor: pointer; flex-shrink: 0;
+            border-radius: 4px; color: white; font-size: 20px; 
+            cursor: pointer; flex-shrink: 0;
         }
         button.icon-btn:active { background-color: #000; transform: translateY(1px); }
-        #save-status { font-size: 11px; color: #9ca3af; white-space: nowrap; height: 14px; }
+        
+        #save-status {
+            font-size: 11px; color: #9ca3af; margin-left: 5px; white-space: nowrap;
+            display: flex; align-items: center; gap: 2px; height: 14px;
+        }
         #save-status.saved { color: #34d399; font-weight: bold; }
+        
         #toolbar-container {
             background-color: var(--toolbar-bg); padding: 6px 8px;
             border-bottom: 1px solid var(--border-color);
             display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
         }
-        .action-row { display: flex; align-items: center; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+        
+        .action-row {
+            display: flex; align-items: center; gap: 10px; overflow-x: auto;
+            white-space: nowrap; -webkit-overflow-scrolling: touch; padding-bottom: 2px;
+        }
         .action-btn {
             background: #fff; border: 1px solid #a0aec0; color: #2d3748;
             font-size: 13px; padding: 0 12px; border-radius: 4px; cursor: pointer;
             height: 36px; white-space: nowrap; display: flex; align-items: center;
         }
-        select#speech-rate-select { height: 36px; font-size: 13px; border: 1px solid #a0aec0; border-radius: 4px; }
-        .marker-scroll-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; scrollbar-width: none; }
-        .palette-btn {
-            width: 44px; height: 40px; flex-shrink: 0; font-size: 24px; background-color: #fff;
-            border: 1px solid #a0aec0; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center;
+        
+        select#speech-rate-select {
+            height: 36px; font-size: 13px; border: 1px solid #a0aec0;
+            border-radius: 4px; background: #fff; color: #2d3748; padding: 0 5px;
         }
-        main { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; position: relative; }
-        .panel.main { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
+
+        .marker-scroll-row {
+            display: flex; gap: 8px; overflow-x: auto; padding: 4px 0;
+            -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        
+        .palette-btn {
+            width: 44px; height: 40px; flex-shrink: 0;
+            font-size: 24px; background-color: #fff; border: 1px solid #a0aec0;
+            border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center;
+        }
+        
+        main {
+            display: flex; flex-direction: column; flex-grow: 1;
+            padding: 0; overflow: hidden; position: relative; min-height: 0;
+        }
+        .panel.main { flex-grow: 1; position: relative; background: var(--main-bg); display: flex; flex-direction: column; min-height: 0; }
+        
         #main-text-area {
             flex-grow: 1; padding: 15px; font-size: 16px; line-height: 1.8;
-            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
+            white-space: pre-wrap; word-wrap: break-word; 
+            overflow-y: auto; outline: none; -webkit-user-select: text; user-select: text;
         }
-        #main-text-area:empty::before { content: attr(placeholder); color: #a0aec0; pointer-events: none; display: block; }
+        #main-text-area:empty::before {
+            content: attr(placeholder); color: #a0aec0; pointer-events: none; display: block;
+        }
+
         .panel.manager {
             flex-shrink: 0; border-top: 1px solid var(--border-color); background: #f7fafc;
             height: 35vh; transition: height 0.3s; display: flex; flex-direction: column;
@@ -73,20 +115,42 @@
         .panel.manager.closed { height: 40px; }
         .panel-header {
             padding: 0 10px; height: 40px; display: flex; align-items: center; justify-content: space-between;
-            background-color: #edf2f7; cursor: pointer; font-size: 14px; font-weight: bold; border-bottom: 1px solid #e2e8f0;
+            background-color: #edf2f7; cursor: pointer; font-size: 14px; font-weight: bold;
+            border-bottom: 1px solid #e2e8f0;
         }
         #marker-manager-list { overflow-y: auto; flex-grow: 1; padding: 5px; }
-        .manager-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; background: #fff; }
+        
+        .manager-item {
+            display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0;
+            font-size: 14px; background: #fff;
+        }
         .manager-item-icon { width: 34px; text-align: center; font-size: 1.3em; }
         .manager-item-text { flex-grow: 1; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .manager-item-delete { border: 1px solid #fecaca; background: #fef2f2; color: #ef4444; width: 40px; height: 36px; border-radius: 4px; cursor: pointer; }
+        
+        .manager-item-delete { 
+            border: 1px solid #fecaca; background: #fef2f2; 
+            color: #ef4444; padding: 0; width: 40px; height: 36px;
+            font-size: 1.2em; border-radius: 4px; cursor: pointer;
+            display: flex; justify-content: center; align-items: center;
+        }
+        .manager-item-delete:active { background: #fee2e2; }
+
         .marker { cursor: pointer; border-radius: 3px; letter-spacing: 0.05em; border-bottom: 2px solid rgba(0,0,0,0.1); }
         .marker.reveal { background-color: var(--highlight-bg); letter-spacing: normal; color: inherit !important; border-bottom: none; }
+        .speech-highlight { background-color: var(--speech-highlight-bg); }
+
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center;
+            background-color: rgba(0,0,0,0.5); z-index: 1000; display: none;
+            justify-content: center; align-items: center;
         }
-        .modal-content { background: #fff; width: 90%; max-width: 500px; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; }
+        .modal-content {
+            background: #fff; width: 90%; max-width: 500px; border-radius: 8px; padding: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px;
+        }
+        textarea.modal-input { width: 100%; height: 150px; border: 1px solid #cbd5e0; border-radius: 4px; padding: 5px; }
+        input.modal-single-input { width: 100%; height: 45px; font-size: 18px; padding: 5px; border: 1px solid #cbd5e0; border-radius: 4px; }
+        .modal-buttons { display: flex; justify-content: flex-end; gap: 10px; }
     </style>
 </head>
 <body>
@@ -95,8 +159,8 @@
             <div class="doc-controls">
                 <select id="doc-select"></select>
                 <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
-                <button id="cloud-load-btn" class="icon-btn" title="クラウドから読込" style="background:#2563eb;">☁</button>
-                <button id="manual-save-btn" class="icon-btn" title="強制保存" style="background:#059669;">✔</button>
+                <button id="cloud-sync-btn" class="icon-btn" title="クラウド読込" style="background:#2563eb;">☁</button>
+                <button id="manual-save-btn" class="icon-btn" title="クラウド書込" style="background:#059669;">💾</button>
             </div>
             <div style="text-align:right;">
                 <div id="char-counter" style="font-size:11px;">0文字</div>
@@ -107,16 +171,17 @@
 
         <div id="toolbar-container">
             <div class="action-row">
-                <button class="action-btn" id="paste-text-btn">📋 貼付</button>
-                <button class="action-btn" id="speech-btn">🔊 読上</button>
-                <select id="speech-rate-select">
+                <button class="action-btn" id="paste-text-btn" title="ここを押して貼り付け">📋 貼付</button>
+                <button class="action-btn" id="speech-btn">▶ 読上</button>
+                <select id="speech-rate-select" title="読み上げ速度">
                     <option value="0.7">0.7x</option>
+                    <option value="0.8">0.8x</option>
                     <option value="0.9">0.9x</option>
                     <option value="1.0" selected>1.0x</option>
                     <option value="1.2">1.2x</option>
                     <option value="1.5">1.5x</option>
                 </select>
-                <button class="action-btn" id="copy-text-btn">📝 コピー</button>
+                <button class="action-btn" id="copy-text-btn">📄 コピー</button>
                 <label class="action-btn" style="margin-left:auto;">
                     <input type="checkbox" id="toggle-markers-cb" checked> マーカー
                 </label>
@@ -130,7 +195,7 @@
             </div>
             <div class="panel manager closed" id="manager-panel">
                 <div class="panel-header" id="manager-header">
-                    <span>マーカー管理</span>
+                    <span>マーカー一覧・管理</span>
                     <span id="toggle-manager-btn">▲</span>
                 </div>
                 <div id="marker-manager-list"></div>
@@ -138,48 +203,110 @@
         </main>
     </div>
 
+    <!-- モーダル (v3.5.0互換) -->
     <div id="modal-overlay">
-        <div class="modal-content">
-            <h3 id="modal-title" style="margin:0;">名前変更</h3>
-            <input type="text" id="rename-input" style="width:100%; height:45px; font-size:18px; padding:5px;">
-            <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button class="action-btn" id="modal-ok-btn">決定</button>
-                <button class="action-btn" id="modal-cancel-btn">閉じる</button>
+        <div class="modal-content" id="sync-modal">
+            <h3 id="modal-title" style="margin:0;"></h3>
+            <p id="modal-desc" style="font-size:13px; color:#555; margin:0;"></p>
+            <div id="modal-choices" style="display:none; gap:10px; justify-content:center;">
+                 <button class="action-btn" id="export-choice-btn">データ書き出し</button>
+                 <button class="action-btn" id="import-choice-btn">データ読み込み</button>
+            </div>
+            <textarea id="io-textarea" class="modal-input" style="display:none;"></textarea>
+            <div id="rename-container" style="display:none; width:100%;">
+                <input type="text" id="rename-input" class="modal-single-input" placeholder="新しいタイトル">
+            </div>
+            <div class="modal-buttons">
+                <button class="action-btn" id="io-action-btn" style="display:none;"></button>
+                <button class="action-btn" id="close-modal-btn">閉じる</button>
             </div>
         </div>
     </div>
 
     <script type="module">
+        // Firebaseのインポート (ES modules)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // 環境変数からの設定
         const firebaseConfig = JSON.parse(__firebase_config);
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'memorize-v3-8';
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'memorize-tool-v3-8';
 
-        class MarkerToolV3_8_0 {
+        class MarkerToolV3_8_5 {
             constructor() {
+                // エラーハンドリング
+                window.onerror = (msg) => { console.error(msg); };
+                
+                // DOM Cache
+                this.docSelect = document.getElementById('doc-select');
+                this.renameDocBtn = document.getElementById('rename-doc-btn');
+                this.mainTextArea = document.getElementById('main-text-area');
+                this.markerManagerList = document.getElementById('marker-manager-list');
+                this.charCounter = document.getElementById('char-counter');
+                this.saveStatus = document.getElementById('save-status');
+                this.speechBtn = document.getElementById('speech-btn');
+                this.speechRateSelect = document.getElementById('speech-rate-select');
+                this.managerPanel = document.getElementById('manager-panel');
+                this.managerHeader = document.getElementById('manager-header');
+                this.toggleManagerBtn = document.getElementById('toggle-manager-btn');
+                this.copyTextBtn = document.getElementById('copy-text-btn');
+                this.pasteTextBtn = document.getElementById('paste-text-btn');
+                this.manualSaveBtn = document.getElementById('manual-save-btn');
+                this.cloudSyncBtn = document.getElementById('cloud-sync-btn');
+                this.toggleMarkersCb = document.getElementById('toggle-markers-cb');
+                this.fixedPalette = document.getElementById('fixed-marker-palette');
+                
+                // Modal Cache
+                this.modalOverlay = document.getElementById('modal-overlay');
+                this.modalTitle = document.getElementById('modal-title');
+                this.modalDesc = document.getElementById('modal-desc');
+                this.modalChoices = document.getElementById('modal-choices');
+                this.ioTextarea = document.getElementById('io-textarea');
+                this.renameContainer = document.getElementById('rename-container');
+                this.renameInput = document.getElementById('rename-input');
+                this.ioActionBtn = document.getElementById('io-action-btn');
+                this.closeModalBtn = document.getElementById('close-modal-btn');
+                this.exportChoiceBtn = document.getElementById('export-choice-btn');
+                this.importChoiceBtn = document.getElementById('import-choice-btn');
+                
+                this.markerStyles = [
+                    { type: 'E', value: '🐞' }, { type: 'E', value: '🐙' }, { type: 'E', value: '😀' },
+                    { type: 'E', value: '🐸' }, { type: 'E', value: '👽' }, { type: 'E', value: '🧟' },
+                    { type: 'E', value: '🥶' }, { type: 'E', value: '🌏' }, { type: 'E', value: '💩' },
+                    { type: 'E', value: '🍇' }, { type: 'E', value: '🏀' }, { type: 'E', value: '💊' },
+                    { type: 'E', value: '💣' }, { type: 'E', value: '💡' }
+                ];
+                
                 this.state = {
-                    anchorLength: 10, isSpeaking: false, appData: { documents: [], rules: '' },
-                    currentDocIndex: 0, lastTapTime: 0, lastTapTarget: null,
-                    isProcessing: false, lastSpeechIndex: 0, fullTextForSpeech: "",
-                    user: null, cloudSyncTimer: null
+                    anchorLength: 10, 
+                    isSpeaking: false, 
+                    appData: { documents: [], rules: '' },
+                    currentDocIndex: 0, 
+                    lastTapTime: 0, 
+                    lastTapTarget: null,
+                    isProcessing: false,
+                    lastSpeechIndex: 0,
+                    fullTextForSpeech: "",
+                    user: null,
+                    cloudTimer: null
                 };
                 this.DOC_COUNT = 20;
                 this.init();
             }
 
             async init() {
-                this.cacheElements();
-                this.loadState();
+                this.loadStateFromLocal();
                 this.createFixedPalette();
+                this.initSpeech();
                 this.bindEvents();
                 this.updateDocSelect();
                 this.updateDocumentView();
 
+                // Firestore認証
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         this.state.user = user;
@@ -190,149 +317,321 @@
                 });
             }
 
-            cacheElements() {
-                this.editor = document.getElementById('main-text-area');
-                this.docSelect = document.getElementById('doc-select');
-                this.saveStatus = document.getElementById('save-status');
-                this.charCounter = document.getElementById('char-counter');
-                this.managerList = document.getElementById('marker-manager-list');
-                this.speechBtn = document.getElementById('speech-btn');
-                this.rateSelect = document.getElementById('speech-rate-select');
-            }
-
             createFixedPalette() {
-                const palette = document.getElementById('fixed-marker-palette');
-                const styles = Array(14).fill({ type: 'E', value: '■' });
-                styles.forEach(style => {
+                this.fixedPalette.innerHTML = '';
+                this.markerStyles.forEach(style => {
                     const btn = document.createElement('div');
                     btn.className = 'palette-btn';
                     btn.textContent = style.value;
-                    const handler = (e) => { e.preventDefault(); if(!this.state.isProcessing) this.applyMarkerToSelection(style); };
+                    const handler = (e) => { 
+                        e.preventDefault(); 
+                        if(!this.state.isProcessing) this.applyMarkerToSelection(style); 
+                    };
                     btn.addEventListener('mousedown', handler);
                     btn.addEventListener('touchstart', handler);
-                    palette.appendChild(btn);
+                    this.fixedPalette.appendChild(btn);
                 });
             }
 
             bindEvents() {
                 const saveHandler = () => {
                     if(this.state.isProcessing) return;
-                    this.saveCurrentToMemory();
-                    this.persist();
+                    this.saveCurrentDocToMemory();
+                    this.saveToLocalAndCloud(); // クラウド連携
                     this.updateCharCount();
-                    this.resetSpeech();
+                    this.resetSpeechState();
                 };
                 
-                this.editor.addEventListener('input', saveHandler);
-                this.editor.addEventListener('blur', saveHandler);
+                this.mainTextArea.addEventListener('input', saveHandler);
+                this.mainTextArea.addEventListener('compositionend', saveHandler); 
+                this.mainTextArea.addEventListener('blur', saveHandler);
+                this.mainTextArea.addEventListener('keyup', saveHandler);
                 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveHandler(); });
 
-                this.editor.addEventListener('click', (e) => this.handleClick(e));
-                this.editor.addEventListener('paste', (e) => {
-                    e.preventDefault();
-                    this.handlePaste((e.clipboardData || window.clipboardData).getData('text'));
+                this.mainTextArea.addEventListener('click', (e) => this.handleMainAreaClick(e));
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('.marker') && !e.target.closest('#fixed-marker-palette')) {
+                        this.clearAllReveals();
+                    }
                 });
                 
-                this.docSelect.addEventListener('change', (e) => this.switchDoc(parseInt(e.target.value)));
-                document.getElementById('rename-doc-btn').onclick = () => this.openRename();
-                document.getElementById('cloud-load-btn').onclick = () => this.loadFromCloud();
-                document.getElementById('manual-save-btn').onclick = () => this.saveToCloud(true);
-                document.getElementById('manager-header').onclick = () => document.getElementById('manager-panel').classList.toggle('closed');
-                document.getElementById('copy-text-btn').onclick = () => this.copyToClipboard();
-                document.getElementById('paste-text-btn').onclick = () => this.pasteFromClipboard();
-                document.getElementById('toggle-markers-cb').onchange = (e) => this.toggleVisibility(e.target.checked);
-                this.speechBtn.onclick = () => this.toggleSpeech();
-            }
+                this.mainTextArea.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const text = (e.clipboardData || window.clipboardData).getData('text');
+                    this.handlePasteText(text);
+                });
+                
+                this.docSelect.addEventListener('change', (e) => {
+                    this.switchDocument(parseInt(e.target.value, 10));
+                    this.resetSpeechState();
+                });
+                
+                this.renameDocBtn.onclick = (e) => { e.preventDefault(); this.openRenameModal(); };
+                this.managerHeader.onclick = () => this.toggleManagerPanel();
+                this.copyTextBtn.onclick = () => this.copyPlainText();
+                
+                // 強制クラウド書込
+                this.manualSaveBtn.onclick = () => this.saveToCloudManual();
+                // クラウド読込
+                this.cloudSyncBtn.onclick = () => this.loadFromCloudManual();
 
-            // --- Logic: Variable Context (Solves Cosmos Problem) ---
-
-            getRaw() {
-                const extract = (node) => {
-                    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
-                    if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.classList.contains('marker')) return node.dataset.originalText || '';
-                        if (node.tagName === 'BR') return '\n';
-                        let res = '';
-                        node.childNodes.forEach(c => res += extract(c));
-                        if (['DIV', 'P', 'LI'].includes(node.tagName) && res.length > 0) return res + '\n';
-                        return res;
-                    }
-                    return '';
+                this.pasteTextBtn.onclick = () => {
+                    this.mainTextArea.focus();
+                    try {
+                        navigator.clipboard.readText().then(text => this.handlePasteText(text))
+                        .catch(() => alert("貼り付けボタンが使えません。画面長押しで貼り付けてください。"));
+                    } catch(e) { alert("貼り付けボタンが使えません。画面長押しで貼り付けてください。"); }
                 };
-                return extract(this.editor).replace(/\n+$/, '').replace(/^\n+/, '');
+                
+                document.getElementById('sync-btn').onclick = () => this.openSyncModal();
+                this.toggleMarkersCb.onchange = (e) => this.toggleAllMarkersVisibility(e.target.checked);
+                this.speechBtn.onclick = () => this.toggleSpeech();
+                this.exportChoiceBtn.onclick = () => this.setupExportModal();
+                this.importChoiceBtn.onclick = () => this.setupImportModal();
+                this.closeModalBtn.onclick = () => this.closeSyncModal();
+                this.ioActionBtn.onclick = () => this.handleIoAction();
             }
 
-            getRawFromRange(range) {
+            // クラウド同期：書込
+            async saveToCloudManual() {
+                if (!this.state.user) return;
+                this.saveCurrentDocToMemory();
+                try {
+                    this.saveStatus.textContent = "☁ 書き込み中...";
+                    const docRef = doc(db, 'artifacts', appId, 'users', this.state.user.uid, 'settings', 'mainData');
+                    await setDoc(docRef, this.state.appData);
+                    this.saveStatus.textContent = "✅ クラウド保存済";
+                    alert("クラウドに保存しました。");
+                } catch (e) { alert("クラウド保存に失敗しました。"); }
+            }
+
+            // クラウド同期：読込
+            async loadFromCloudManual() {
+                if (!this.state.user) return;
+                if (!confirm("クラウドから最新データを読み込みますか？(現在の内容は上書きされます)")) return;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', this.state.user.uid, 'settings', 'mainData');
+                    const snap = await getDoc(docRef);
+                    if (snap.exists()) {
+                        this.state.appData = snap.data();
+                        this.saveToLocalOnly(); // ローカルにも反映
+                        this.updateDocSelect();
+                        this.updateDocumentView();
+                        alert("読み込み完了しました。");
+                    } else { alert("クラウドにデータが見つかりませんでした。"); }
+                } catch (e) { alert("クラウド読み込みに失敗しました。"); }
+            }
+
+            resetSpeechState() {
+                this.state.lastSpeechIndex = 0;
+                this.state.fullTextForSpeech = "";
+                if (!this.state.isSpeaking) {
+                    this.speechBtn.textContent = "▶ 読上";
+                }
+            }
+
+            openRenameModal() {
+                const cur = this.state.appData.documents[this.state.currentDocIndex];
+                const currentTitle = cur ? cur.title : `文章 ${this.state.currentDocIndex + 1}`;
+
+                this.modalOverlay.style.display = 'flex';
+                this.modalTitle.textContent = "名前の変更";
+                this.modalDesc.textContent = "新しいタイトルを入力してください";
+                this.modalChoices.style.display = 'none';
+                this.ioTextarea.style.display = 'none';
+                this.renameContainer.style.display = 'block';
+                
+                this.renameInput.value = currentTitle;
+                setTimeout(() => this.renameInput.focus(), 100);
+                
+                this.ioActionBtn.style.display = 'inline-block';
+                this.ioActionBtn.textContent = "決定";
+                
+                this.ioActionBtn.onclick = () => {
+                    const newName = this.renameInput.value;
+                    if(newName && newName.trim()) {
+                        this.state.appData.documents[this.state.currentDocIndex].title = newName.trim();
+                        this.updateDocSelect();
+                        this.saveToLocalAndCloud();
+                        this.closeSyncModal();
+                    }
+                };
+            }
+
+            handlePasteText(text) {
+                if(!text) return;
+                const cleanText = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                const selection = window.getSelection();
+                if (selection.rangeCount > 0) {
+                    const range = selection.getRangeAt(0);
+                    range.deleteContents();
+                    const textNode = document.createTextNode(cleanText);
+                    range.insertNode(textNode);
+                    range.setStartAfter(textNode);
+                    range.setEndAfter(textNode);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                } else {
+                    this.mainTextArea.appendChild(document.createTextNode(cleanText));
+                }
+                this.saveCurrentDocToMemory();
+                this.saveToLocalAndCloud();
+                this.applyRules();
+                this.resetSpeechState();
+            }
+
+            getCleanTextFromRange(range) {
                 const clone = range.cloneContents();
                 let text = "";
                 const extract = (node) => {
                     if (node.nodeType === Node.TEXT_NODE) return node.textContent;
                     if (node.nodeType === Node.ELEMENT_NODE) {
-                        if (node.classList.contains('marker')) return node.dataset.originalText || '';
+                        if (node.classList.contains('marker')) { return node.dataset.originalText || ''; }
                         let t = ""; node.childNodes.forEach(c => t += extract(c)); return t;
                     }
                     return "";
                 };
-                clone.childNodes.forEach(n => text += extract(n));
+                clone.childNodes.forEach(node => text += extract(node));
                 return text;
             }
 
+            // 知的なアンカー取得 (コスモス問題解決)
             applyMarkerToSelection(style) {
-                const sel = window.getSelection();
-                if (!sel.rangeCount || sel.isCollapsed) return;
-                const range = sel.getRangeAt(0);
-                const hidden = range.toString().trim();
-                if (!hidden) return;
+                const selection = window.getSelection();
+                if (!selection.rangeCount || selection.isCollapsed) return;
+                const range = selection.getRangeAt(0);
+                const hiddenText = range.toString().trim();
+                if (!hiddenText) return;
 
-                // 智力的解決: 前後の文字数を動的に取得（10文字に満たない文頭なども許容）
-                const getContext = (isBefore) => {
-                    const r = document.createRange();
-                    if(isBefore) {
-                        r.setStart(this.editor, 0); r.setEnd(range.startContainer, range.startOffset);
-                        return [...this.getRawFromRange(r)].slice(-this.state.anchorLength).join('');
-                    } else {
-                        r.setStart(range.endContainer, range.endOffset); r.setEnd(this.editor, this.editor.childNodes.length);
-                        return [...this.getRawFromRange(r)].slice(0, this.state.anchorLength).join('');
-                    }
-                };
+                // 文頭でも対応できるよう slice を工夫
+                const rangeBefore = document.createRange();
+                rangeBefore.setStart(this.mainTextArea, 0);
+                rangeBefore.setEnd(range.startContainer, range.startOffset);
+                const textBefore = this.getCleanTextFromRange(rangeBefore);
+                const prefix = [...textBefore].slice(-this.state.anchorLength).join('');
+                
+                const rangeAfter = document.createRange();
+                rangeAfter.setStart(range.endContainer, range.endOffset);
+                rangeAfter.setEnd(this.mainTextArea, this.mainTextArea.childNodes.length);
+                const textAfter = this.getCleanTextFromRange(rangeAfter);
+                const suffix = [...textAfter].slice(0, this.state.anchorLength).join('');
 
-                const prefix = getContext(true);
-                const suffix = getContext(false);
-                const rule = `${this.state.currentDocIndex}::${prefix}[SEP]${suffix}->${hidden} %% ${style.type}${style.value}`;
+                const styleString = `%% ${style.type}${style.value}`;
+                // マーカー判定キーを SEP (セパレータ) で管理
+                const rule = `${this.state.currentDocIndex}::${prefix}[SEP]${suffix}->${hiddenText} ${styleString}`;
                 
-                const rules = this.state.appData.rules.split('\n').filter(Boolean);
-                rules.push(rule);
-                this.state.appData.rules = rules.join('\n');
-                
+                const currentRules = this.state.appData.rules.split('\n').filter(Boolean);
+                currentRules.push(rule);
+                this.state.appData.rules = currentRules.join('\n');
                 this.applyRules();
-                sel.removeAllRanges();
-                this.persist();
+                window.getSelection().removeAllRanges();
+                this.saveToLocalAndCloud();
+            }
+
+            handleMainAreaClick(e) {
+                const marker = e.target.closest('.marker');
+                if (!marker) return;
+                const now = Date.now();
+                if (now - this.state.lastTapTime < 300 && this.state.lastTapTarget === marker) {
+                    if(confirm("このマーカーを削除しますか？")) this.removeRule(marker.dataset.fullRule);
+                    this.state.lastTapTime = 0; this.state.lastTapTarget = null;
+                } else {
+                    this.toggleMarkerReveal(marker);
+                    this.state.lastTapTime = now; this.state.lastTapTarget = marker;
+                }
+            }
+
+            toggleMarkerReveal(marker) {
+                if (marker.classList.contains('reveal')) this.unrevealMarker(marker);
+                else { this.clearAllReveals(); this.revealMarker(marker); }
+            }
+            revealMarker(marker) {
+                marker.classList.add('reveal');
+                marker.textContent = marker.dataset.originalText;
+            }
+            unrevealMarker(marker) {
+                marker.classList.remove('reveal');
+                const style = marker.dataset.style;
+                if (style && style.startsWith('E')) marker.textContent = style.substring(1).repeat(marker.dataset.originalText.length);
+            }
+            clearAllReveals() {
+                this.mainTextArea.querySelectorAll('.marker.reveal').forEach(m => this.unrevealMarker(m));
+            }
+            toggleAllMarkersVisibility(show) {
+                this.mainTextArea.querySelectorAll('.marker').forEach(marker => {
+                    marker.classList.remove('reveal');
+                    if (show) {
+                        this.unrevealMarker(marker);
+                        marker.style.display = 'inline';
+                        marker.style.letterSpacing = '0.05em';
+                        marker.style.borderBottom = '2px solid rgba(0,0,0,0.1)';
+                    } else {
+                        marker.textContent = marker.dataset.originalText;
+                        marker.style.letterSpacing = 'normal';
+                        marker.style.borderBottom = 'none';
+                    }
+                });
+            }
+
+            getOriginalText() {
+                const extract = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.classList.contains('marker')) return node.dataset.originalText || '';
+                        if (node.tagName === 'BR') return '\n';
+                        let childText = '';
+                        node.childNodes.forEach(child => childText += extract(child));
+                        if (['DIV', 'P', 'LI'].includes(node.tagName) && childText.length > 0) return childText + '\n';
+                        return childText;
+                    }
+                    return '';
+                };
+                let text = extract(this.mainTextArea);
+                return text.replace(/\n+$/, '').replace(/^\n+/, '');
             }
 
             applyRules() {
-                const raw = this.getRaw();
-                this.state.appData.documents[this.state.currentDocIndex].content = raw;
-                this.editor.innerHTML = '';
-                
-                let segments = [{ text: raw, type: 'text' }];
-                const rules = this.state.appData.rules.split('\n').filter(r => r.startsWith(this.state.currentDocIndex + '::'));
-                
-                rules.forEach(rule => {
-                    try {
-                        const [meta, body] = rule.split('->');
-                        const [ctx, style] = body.split(' %% ');
-                        const [prefix, suffix] = meta.split('::')[1].split('[SEP]');
-                        const pattern = prefix + ctx + suffix;
+                const originalText = this.getOriginalText();
+                if (this.mainTextArea.childNodes.length > 0 && originalText.length === 0) return;
 
+                this.state.appData.documents[this.state.currentDocIndex].content = originalText;
+                this.mainTextArea.innerHTML = '';
+                
+                let segments = [{ text: originalText, type: 'text' }];
+                const allRules = this.state.appData.rules.split('\n').filter(Boolean);
+                const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + '::') || rule.startsWith(this.state.currentDocIndex + ' ::'));
+                
+                targetRules.forEach(rule => {
+                    try {
+                        let prefix, suffix, hiddenText, styleString;
+                        if (rule.includes('[SEP]')) {
+                            // v3.8系 新形式
+                            const parts = rule.split('->');
+                            hiddenText = parts[1].split(' %% ')[0];
+                            styleString = parts[1].split(' %% ')[1];
+                            const meta = parts[0].split('::')[1];
+                            prefix = meta.split('[SEP]')[0];
+                            suffix = meta.split('[SEP]')[1];
+                        } else {
+                            // v3.5系 旧形式
+                            const ruleParts = rule.split(' -> ');
+                            hiddenText = ruleParts[1].split(' %% ')[0];
+                            styleString = ruleParts[1].split(' %% ')[1];
+                            prefix = ruleParts[0].split(' :: ')[1].split('...')[0];
+                        }
+                        
+                        const fullAnchor = prefix + hiddenText;
+                        
                         for (let i = 0; i < segments.length; i++) {
                             if (segments[i].type === 'text') {
-                                const idx = segments[i].text.indexOf(pattern);
-                                if (idx > -1) {
-                                    const start = idx + prefix.length;
+                                const index = segments[i].text.indexOf(fullAnchor);
+                                if (index > -1) {
+                                    const before = segments[i].text.substring(0, index + prefix.length);
+                                    const after = segments[i].text.substring(index + prefix.length + hiddenText.length);
                                     segments.splice(i, 1, 
-                                        { text: segments[i].text.substring(0, start), type: 'text' },
-                                        { text: ctx, type: 'marker', style: style, rule: rule },
-                                        { text: segments[i].text.substring(start + ctx.length), type: 'text' }
+                                        { text: before, type: 'text' }, 
+                                        { text: hiddenText, type: 'marker', style: styleString, fullRule: rule }, 
+                                        { text: after, type: 'text' }
                                     );
                                     break;
                                 }
@@ -343,222 +642,256 @@
 
                 segments.forEach(seg => {
                     if (seg.type === 'text') {
-                        seg.text.split('\n').forEach((line, i, arr) => {
-                            if(line) this.editor.appendChild(document.createTextNode(line));
-                            if(i < arr.length - 1) this.editor.appendChild(document.createElement('br'));
+                        const lines = seg.text.split('\n');
+                        lines.forEach((line, idx) => {
+                            if(line) this.mainTextArea.appendChild(document.createTextNode(line));
+                            if(idx < lines.length - 1) {
+                                this.mainTextArea.appendChild(document.createElement('br'));
+                            }
                         });
-                    } else {
-                        const span = document.createElement('span');
-                        span.className = 'marker';
-                        span.dataset.originalText = seg.text;
-                        span.dataset.style = seg.style;
-                        span.dataset.fullRule = seg.rule;
-                        span.textContent = seg.style.substring(1).repeat(seg.text.length);
-                        this.editor.appendChild(span);
+                    } else if(seg.type === 'marker') {
+                        const markerSpan = document.createElement('span');
+                        markerSpan.className = 'marker';
+                        markerSpan.dataset.originalText = seg.text;
+                        markerSpan.dataset.style = seg.style;
+                        markerSpan.dataset.fullRule = seg.fullRule;
+                        const type = seg.style.charAt(0);
+                        const value = seg.style.substring(1);
+                        if (type === 'E') { markerSpan.textContent = value.repeat(seg.text.length); }
+                        this.mainTextArea.appendChild(markerSpan);
                     }
                 });
-                this.renderManager();
+
+                this.renderMarkerManager();
                 this.updateCharCount();
+                if (!this.toggleMarkersCb.checked) this.toggleAllMarkersVisibility(false);
             }
 
-            // --- UI & Interaction ---
+            renderMarkerManager() {
+                this.markerManagerList.innerHTML = '';
+                const allRules = this.state.appData.rules.split('\n').filter(Boolean);
+                const targetRules = allRules.filter(rule => rule.startsWith(this.state.currentDocIndex + '::') || rule.startsWith(this.state.currentDocIndex + ' ::'));
 
-            handleClick(e) {
-                const m = e.target.closest('.marker');
-                if (!m) { this.clearReveals(); return; }
-                const now = Date.now();
-                if (now - this.state.lastTapTime < 300 && this.state.lastTapTarget === m) {
-                    if(confirm("削除しますか？")) this.removeRule(m.dataset.fullRule);
-                } else {
-                    if (m.classList.contains('reveal')) {
-                        m.classList.remove('reveal');
-                        m.textContent = m.dataset.style.substring(1).repeat(m.dataset.originalText.length);
-                    } else {
-                        this.clearReveals();
-                        m.classList.add('reveal');
-                        m.textContent = m.dataset.originalText;
-                    }
-                    this.state.lastTapTime = now; this.state.lastTapTarget = m;
+                if(targetRules.length === 0) {
+                    this.markerManagerList.innerHTML = '<p style="text-align:center; color:#718096; padding: 10px;">マーカーはありません</p>';
+                    return;
                 }
-            }
-
-            clearReveals() {
-                this.editor.querySelectorAll('.marker.reveal').forEach(m => {
-                    m.classList.remove('reveal');
-                    m.textContent = m.dataset.style.substring(1).repeat(m.dataset.originalText.length);
-                });
-            }
-
-            removeRule(rule) {
-                const rules = this.state.appData.rules.split('\n');
-                const i = rules.indexOf(rule);
-                if (i > -1) {
-                    rules.splice(i, 1);
-                    this.state.appData.rules = rules.join('\n');
-                    this.applyRules();
-                    this.persist();
-                }
-            }
-
-            renderManager() {
-                this.managerList.innerHTML = '';
-                const rules = this.state.appData.rules.split('\n').filter(r => r.startsWith(this.state.currentDocIndex + '::'));
-                if(!rules.length) { this.managerList.innerHTML = '<p style="text-align:center;color:#9ca3af;">なし</p>'; return; }
-                rules.forEach(rule => {
+                targetRules.forEach(rule => {
                     const item = document.createElement('div');
                     item.className = 'manager-item';
-                    const [meta, body] = rule.split('->');
-                    const [hidden, style] = body.split(' %% ');
-                    item.innerHTML = `<div class="manager-item-icon">${style.substring(1)}</div><div class="manager-item-text">${hidden}</div><button class="manager-item-delete">×</button>`;
-                    item.querySelector('.manager-item-delete').onclick = (e) => { e.stopPropagation(); this.removeRule(rule); };
-                    item.onclick = () => {
-                        const el = this.editor.querySelector(`.marker[data-full-rule="${CSS.escape(rule)}"]`);
-                        if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('reveal'); el.textContent = el.dataset.originalText; }
+                    const parts = rule.split('->');
+                    const hiddenPart = parts[1] || parts[0]; // 防御的
+                    const hidden = hiddenPart.split(' %% ')[0].trim();
+                    const icon = hiddenPart.split(' %% ')[1].substring(1);
+                    item.innerHTML = `
+                        <div class="manager-item-icon">${icon}</div>
+                        <div class="manager-item-text">${hidden}</div>
+                        <button class="manager-item-delete">×</button>
+                    `;
+                    const delBtn = item.querySelector('.manager-item-delete');
+                    delBtn.onclick = (e) => { 
+                        e.stopPropagation();
+                        if(confirm("削除しますか？")) this.removeRule(rule); 
                     };
-                    this.managerList.appendChild(item);
+                    
+                    item.onclick = () => {
+                         const el = this.mainTextArea.querySelector(`.marker[data-full-rule="${CSS.escape(rule)}"]`);
+                         if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); this.toggleMarkerReveal(el); }
+                    };
+                    this.markerManagerList.appendChild(item);
                 });
             }
+            
+            removeRule(ruleToRemove) {
+                const rules = this.state.appData.rules.split('\n');
+                let idx = rules.indexOf(ruleToRemove);
+                if (idx === -1) idx = rules.findIndex(r => r.trim() === ruleToRemove.trim());
 
-            // --- Persistence & Sync ---
-
-            saveCurrentToMemory() {
-                this.state.appData.documents[this.state.currentDocIndex].content = this.getRaw();
-            }
-
-            persist() {
-                localStorage.setItem('markerTool_v3_8', JSON.stringify(this.state.appData));
-                this.saveStatus.textContent = "✓ 保存済";
-                this.saveStatus.classList.add('saved');
-                clearTimeout(this.state.cloudSyncTimer);
-                this.state.cloudSyncTimer = setTimeout(() => this.saveToCloud(), 3000);
-            }
-
-            async saveToCloud(manual = false) {
-                if (!this.state.user) return;
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'users', this.state.user.uid, 'data', 'main');
-                    await setDoc(docRef, this.state.appData);
-                    this.saveStatus.textContent = "☁ 同期完了";
-                    if(manual) alert("クラウドへ書き込みました。");
-                    setTimeout(() => this.saveStatus.textContent = "", 2000);
-                } catch (e) { this.saveStatus.textContent = "❌ 失敗"; }
-            }
-
-            async loadFromCloud() {
-                if (!this.state.user || !confirm("クラウドから読込ますか？")) return;
-                const snap = await getDoc(doc(db, 'artifacts', appId, 'users', this.state.user.uid, 'data', 'main'));
-                if (snap.exists()) {
-                    this.state.appData = snap.data();
-                    this.persist(); this.updateDocSelect(); this.updateDocumentView();
-                    alert("読込完了");
-                } else alert("データがありません");
-            }
-
-            loadState() {
-                const s = localStorage.getItem('markerTool_v3_8');
-                if (s) this.state.appData = JSON.parse(s);
-                else {
-                    this.state.appData = { documents: [], rules: '' };
-                    for(let i=1; i<=this.DOC_COUNT; i++) this.state.appData.documents.push({title: `文章 ${i}`, content: ''});
+                if (idx > -1) { 
+                    rules.splice(idx, 1); 
+                    this.state.appData.rules = rules.join('\n'); 
+                    this.applyRules(); 
+                    this.saveToLocalAndCloud();
                 }
             }
+            
+            copyPlainText() {
+                navigator.clipboard.writeText(this.getOriginalText()).then(() => alert("コピーしました"));
+            }
+            
+            openSyncModal() {
+                this.modalOverlay.style.display = 'flex';
+                this.modalChoices.style.display = 'flex';
+                this.modalTitle.textContent = "データ同期 (手動)";
+                this.modalDesc.textContent = "テキスト形式でのバックアップや復元を行います。";
+                this.ioTextarea.style.display = 'none';
+                this.renameContainer.style.display = 'none';
+                this.ioActionBtn.style.display = 'none';
+                this.ioActionBtn.onclick = () => this.handleIoAction();
+            }
 
+            setupExportModal() {
+                this.modalChoices.style.display = 'none';
+                this.modalDesc.textContent = "以下のデータをすべてコピーして保存してください。";
+                this.ioTextarea.style.display = 'block';
+                this.ioTextarea.readOnly = true;
+                this.ioTextarea.value = JSON.stringify(this.state.appData);
+                this.ioActionBtn.style.display = 'inline-block';
+                this.ioActionBtn.textContent = "コピーする";
+            }
+            setupImportModal() {
+                this.modalChoices.style.display = 'none';
+                this.modalDesc.textContent = "バックアップデータを貼り付けてください(現在データは上書きされます)。";
+                this.ioTextarea.style.display = 'block';
+                this.ioTextarea.readOnly = false;
+                this.ioTextarea.value = '';
+                this.ioActionBtn.style.display = 'inline-block';
+                this.ioActionBtn.textContent = "上書き読み込み";
+            }
+            closeSyncModal() { this.modalOverlay.style.display = 'none'; }
+            
+            handleIoAction() {
+                if (this.ioActionBtn.textContent.includes('コピー')) {
+                    navigator.clipboard.writeText(this.ioTextarea.value);
+                    alert("コピーしました");
+                } else {
+                    try {
+                        const data = JSON.parse(this.ioTextarea.value);
+                        if (data.documents) {
+                            if(confirm("本当に上書きしますか？")) {
+                                this.state.appData = data;
+                                this.saveToLocalAndCloud();
+                                this.updateDocSelect();
+                                this.updateDocumentView();
+                                this.closeSyncModal();
+                            }
+                        }
+                    } catch(e) { alert("データ形式が正しくありません"); }
+                }
+            }
+            
             updateDocSelect() {
-                this.docSelect.innerHTML = this.state.appData.documents.map((d,i) => `<option value="${i}">${d.title}</option>`).join('');
+                this.docSelect.innerHTML = '';
+                this.state.appData.documents.forEach((d, i) => {
+                    const o = document.createElement('option');
+                    o.value = i; o.textContent = d.title;
+                    this.docSelect.appendChild(o);
+                });
                 this.docSelect.value = this.state.currentDocIndex;
             }
 
-            switchDoc(i) {
-                if(this.state.isProcessing) return;
-                this.state.isProcessing = true;
-                this.saveCurrentToMemory(); this.persist();
+            switchDocument(i) {
+                if(this.state.isProcessing) return; 
+                this.state.isProcessing = true; 
+                this.saveCurrentDocToMemory();
+                this.saveToLocalAndCloud(); 
                 this.state.currentDocIndex = i;
-                this.updateDocumentView();
-                this.resetSpeech();
-                setTimeout(() => this.state.isProcessing = false, 300);
+                this.mainTextArea.innerHTML = ''; 
+                if(!this.state.appData.documents[i]) this.state.appData.documents[i] = { title: `文章 ${i+1}`, content: '' };
+                this.mainTextArea.innerText = this.state.appData.documents[i].content || '';
+                this.applyRules();
+                setTimeout(() => { this.state.isProcessing = false; }, 300);
             }
 
             updateDocumentView() {
                 this.docSelect.value = this.state.currentDocIndex;
-                this.editor.innerText = this.state.appData.documents[this.state.currentDocIndex].content || '';
+                const content = this.state.appData.documents[this.state.currentDocIndex].content || '';
+                this.mainTextArea.innerText = content;
                 this.applyRules();
             }
 
-            updateCharCount() { this.charCounter.textContent = `${this.getRaw().length}文字`; }
-
-            // --- Clipboard & Speech ---
-
-            handlePaste(text) {
-                if(!text) return;
-                const clean = text.replace(/\r/g, '');
-                const sel = window.getSelection();
-                if (sel.rangeCount > 0) {
-                    const r = sel.getRangeAt(0); r.deleteContents();
-                    const n = document.createTextNode(clean); r.insertNode(n);
-                    r.setStartAfter(n); r.setEndAfter(n);
-                    sel.removeAllRanges(); sel.addRange(r);
-                } else this.editor.appendChild(document.createTextNode(clean));
-                this.saveCurrentToMemory(); this.persist(); this.applyRules();
+            updateCharCount() { this.charCounter.textContent = this.getOriginalText().length + "文字"; }
+            
+            saveCurrentDocToMemory() {
+                this.state.appData.documents[this.state.currentDocIndex].content = this.getOriginalText();
             }
 
-            copyToClipboard() { navigator.clipboard.writeText(this.getRaw()).then(() => alert("コピーしました")); }
-            pasteFromClipboard() {
-                navigator.clipboard.readText().then(t => this.handlePaste(t)).catch(() => alert("長押しで貼り付けてください"));
-            }
-
-            toggleVisibility(show) {
-                this.editor.querySelectorAll('.marker').forEach(m => {
-                    m.classList.remove('reveal');
-                    if (show) {
-                        m.textContent = m.dataset.style.substring(1).repeat(m.dataset.originalText.length);
-                        m.style.display = 'inline'; m.style.borderBottom = '2px solid rgba(0,0,0,0.1)';
-                    } else {
-                        m.textContent = m.dataset.originalText;
-                        m.style.display = 'inline'; m.style.borderBottom = 'none';
+            // ローカル保存とクラウド保存（遅延実行）
+            saveToLocalAndCloud() {
+                this.saveToLocalOnly();
+                this.saveStatus.textContent = "✓ 保存済";
+                this.saveStatus.classList.add('saved');
+                
+                // 3秒間入力がなければクラウドへ自動書き込み
+                clearTimeout(this.state.cloudTimer);
+                this.state.cloudTimer = setTimeout(async () => {
+                    if (this.state.user) {
+                        try {
+                            const docRef = doc(db, 'artifacts', appId, 'users', this.state.user.uid, 'settings', 'mainData');
+                            await setDoc(docRef, this.state.appData);
+                            this.saveStatus.textContent = "✅ クラウド同期中";
+                        } catch (e) {}
                     }
-                });
+                    setTimeout(() => { 
+                        this.saveStatus.textContent = ""; 
+                        this.saveStatus.classList.remove('saved'); 
+                    }, 2000);
+                }, 3000);
             }
 
-            openRename() {
-                const modal = document.getElementById('modal-overlay');
-                const input = document.getElementById('rename-input');
-                modal.style.display = 'flex';
-                input.value = this.state.appData.documents[this.state.currentDocIndex].title;
-                document.getElementById('modal-ok-btn').onclick = () => {
-                    if(input.value.trim()) {
-                        this.state.appData.documents[this.state.currentDocIndex].title = input.value.trim();
-                        this.updateDocSelect(); this.persist();
-                    }
-                    modal.style.display = 'none';
-                };
-                document.getElementById('modal-cancel-btn').onclick = () => modal.style.display = 'none';
+            saveToLocalOnly() {
+                localStorage.setItem('markerToolState_v3_8', JSON.stringify(this.state.appData));
+            }
+            
+            loadStateFromLocal() {
+                try { 
+                    const loaded = JSON.parse(localStorage.getItem('markerToolState_v3_8'));
+                    if(loaded && Array.isArray(loaded.documents)) {
+                        this.state.appData = loaded;
+                    } else { this.resetData(); }
+                } catch(e) { this.resetData(); }
+                while(this.state.appData.documents.length < this.DOC_COUNT) {
+                     this.state.appData.documents.push({title: `文章 ${this.state.appData.documents.length+1}`, content: ''});
+                }
+            }
+            
+            resetData() {
+                this.state.appData = { documents: [], rules: '' };
+                for(let i=1; i<=this.DOC_COUNT; i++) this.state.appData.documents.push({title: `文章 ${i}`, content: ''});
             }
 
-            resetSpeech() {
-                this.state.lastSpeechIndex = 0; this.state.fullTextForSpeech = "";
-                if (!this.state.isSpeaking) this.speechBtn.textContent = "🔊 読上";
+            toggleManagerPanel() {
+                this.managerPanel.classList.toggle('closed');
+                this.toggleManagerBtn.textContent = this.managerPanel.classList.contains('closed') ? '▲' : '▼';
             }
 
+            initSpeech() { if(!window.speechSynthesis) this.speechBtn.disabled = true; }
+            
             toggleSpeech() {
                 if(this.state.isSpeaking) {
-                    window.speechSynthesis.cancel(); this.state.isSpeaking = false;
-                    this.speechBtn.textContent = "🔊 続き"; return;
+                    window.speechSynthesis.cancel();
+                    this.state.isSpeaking = false;
+                    this.speechBtn.textContent = "▶ 続き";
+                    return;
                 }
-                const raw = this.getRaw();
-                if (this.state.fullTextForSpeech !== raw) { this.state.lastSpeechIndex = 0; this.state.fullTextForSpeech = raw; }
-                const txt = raw.substring(this.state.lastSpeechIndex);
-                if(!txt.trim()) { alert("テキストがありません"); this.resetSpeech(); return; }
+                const currentFullText = this.getOriginalText();
+                if (this.state.fullTextForSpeech !== currentFullText) {
+                    this.state.lastSpeechIndex = 0;
+                    this.state.fullTextForSpeech = currentFullText;
+                }
+                let textToSpeak = (this.state.lastSpeechIndex > 0) ? currentFullText.substring(this.state.lastSpeechIndex) : currentFullText;
+
+                if(!textToSpeak.trim()) { this.resetSpeechState(); return; }
 
                 window.speechSynthesis.cancel();
-                const u = new SpeechSynthesisUtterance(txt);
-                u.lang = 'ja-JP'; u.rate = parseFloat(this.rateSelect.value);
-                u.onboundary = (e) => this.state.lastSpeechIndex = (raw.length - txt.length) + e.charIndex;
-                u.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "🔊 読上"; this.state.lastSpeechIndex = 0; };
+                const u = new SpeechSynthesisUtterance(textToSpeak);
+                u.lang = 'ja-JP';
+                u.rate = parseFloat(this.speechRateSelect.value) || 1.0;
+                u.onboundary = (event) => {
+                    this.state.lastSpeechIndex = (currentFullText.length - textToSpeak.length) + event.charIndex;
+                };
+                u.onend = () => { 
+                    this.state.isSpeaking = false; 
+                    this.speechBtn.textContent = "▶ 読上"; 
+                    this.state.lastSpeechIndex = 0;
+                };
                 window.speechSynthesis.speak(u);
-                this.state.isSpeaking = true; this.speechBtn.textContent = "⏸ 中断";
+                this.state.isSpeaking = true;
+                this.speechBtn.textContent = "⏸ 中断";
             }
         }
-        window.onload = () => new MarkerToolV3_8_0();
+        new MarkerToolV3_8_5();
     </script>
 </body>
 </html>
+
