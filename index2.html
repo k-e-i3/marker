@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>暗記ツール v3.8.0 - Perfect Integration</title>
+    <style>
+        :root {
+            --bg-color: #f4f4f9; --main-bg: #ffffff;
+            --text-color: #333; --border-color: #cbd5e0;
+            --header-bg: #111827; --header-text: #ffffff;
+            --button-bg: #374151; --button-hover-bg: #1f2937;
+            --highlight-bg: #fffde7; --speech-highlight-bg: #fdff32;
+            --toolbar-bg: #e2e8f0;
+            --status-ok: #48bb78;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; background-color: var(--bg-color); color: var(--text-color);
+            overflow: hidden; height: 100vh; width: 100vw;
+        }
+        #app-root {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            display: flex; flex-direction: column; overflow: hidden; z-index: 1;
+        }
+        header {
+            background-color: var(--header-bg); color: var(--header-text);
+            padding: 8px 10px; display: flex; align-items: center; gap: 8px;
+            flex-shrink: 0; z-index: 10; min-height: 50px; justify-content: space-between;
+        }
+        .doc-controls { display: flex; flex-grow: 1; gap: 8px; align-items: center; overflow: hidden; }
+        select#doc-select {
+            flex-grow: 1; height: 36px; font-size: 16px; border: 1px solid #6b7280;
+            background: #f3f4f6; color: #111827; padding: 0 5px; border-radius: 4px;
+        }
+        button.icon-btn {
+            height: 36px; width: 44px; display: flex; justify-content: center; align-items: center;
+            background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.2); 
+            border-radius: 4px; color: white; font-size: 20px; cursor: pointer; flex-shrink: 0;
+        }
+        button.icon-btn:active { background-color: #000; transform: translateY(1px); }
+        #save-status { font-size: 11px; color: #9ca3af; white-space: nowrap; height: 14px; }
+        #save-status.saved { color: #34d399; font-weight: bold; }
+        #toolbar-container {
+            background-color: var(--toolbar-bg); padding: 6px 8px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+        }
+        .action-row { display: flex; align-items: center; gap: 10px; overflow-x: auto; padding-bottom: 2px; }
+        .action-btn {
+            background: #fff; border: 1px solid #a0aec0; color: #2d3748;
+            font-size: 13px; padding: 0 12px; border-radius: 4px; cursor: pointer;
+            height: 36px; white-space: nowrap; display: flex; align-items: center;
+        }
+        select#speech-rate-select { height: 36px; font-size: 13px; border: 1px solid #a0aec0; border-radius: 4px; }
+        .marker-scroll-row { display: flex; gap: 8px; overflow-x: auto; padding: 4px 0; scrollbar-width: none; }
+        .palette-btn {
+            width: 44px; height: 40px; flex-shrink: 0; font-size: 24px; background-color: #fff;
+            border: 1px solid #a0aec0; border-radius: 4px; cursor: pointer; display: flex; justify-content: center; align-items: center;
+        }
+        main { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; position: relative; }
+        .panel.main { flex-grow: 1; display: flex; flex-direction: column; min-height: 0; }
+        #main-text-area {
+            flex-grow: 1; padding: 15px; font-size: 16px; line-height: 1.8;
+            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
+        }
+        #main-text-area:empty::before { content: attr(placeholder); color: #a0aec0; pointer-events: none; display: block; }
+        .panel.manager {
+            flex-shrink: 0; border-top: 1px solid var(--border-color); background: #f7fafc;
+            height: 35vh; transition: height 0.3s; display: flex; flex-direction: column;
+        }
+        .panel.manager.closed { height: 40px; }
+        .panel-header {
+            padding: 0 10px; height: 40px; display: flex; align-items: center; justify-content: space-between;
+            background-color: #edf2f7; cursor: pointer; font-size: 14px; font-weight: bold; border-bottom: 1px solid #e2e8f0;
+        }
+        #marker-manager-list { overflow-y: auto; flex-grow: 1; padding: 5px; }
+        .manager-item { display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; background: #fff; }
+        .manager-item-icon { width: 34px; text-align: center; font-size: 1.3em; }
+        .manager-item-text { flex-grow: 1; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .manager-item-delete { border: 1px solid #fecaca; background: #fef2f2; color: #ef4444; width: 40px; height: 36px; border-radius: 4px; cursor: pointer; }
+        .marker { cursor: pointer; border-radius: 3px; letter-spacing: 0.05em; border-bottom: 2px solid rgba(0,0,0,0.1); }
+        .marker.reveal { background-color: var(--highlight-bg); letter-spacing: normal; color: inherit !important; border-bottom: none; }
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5); z-index: 1000; display: none; justify-content: center; align-items: center;
+        }
+        .modal-content { background: #fff; width: 90%; max-width: 500px; border-radius: 8px; padding: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 15px; }
+    </style>
+</head>
+<body>
+    <div id="app-root">
+        <header>
+            <div class="doc-controls">
+                <select id="doc-select"></select>
+                <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
+                <button id="cloud-load-btn" class="icon-btn" title="クラウドから読込" style="background:#2563eb;">☁</button>
+                <button id="manual-save-btn" class="icon-btn" title="強制保存" style="background:#059669;">✔</button>
+            </div>
+            <div style="text-align:right;">
+                <div id="char-counter" style="font-size:11px;">0文字</div>
+                <div id="save-status"></div>
+                <div id="user-id-display" style="font-size:9px; color:#9ca3af;">ID: loading...</div>
+            </div>
+        </header>
+
+        <div id="toolbar-container">
+            <div class="action-row">
+                <button class="action-btn" id="paste-text-btn">📋 貼付</button>
+                <button class="action-btn" id="speech-btn">🔊 読上</button>
+                <select id="speech-rate-select">
+                    <option value="0.7">0.7x</option>
+                    <option value="0.9">0.9x</option>
+                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.2">1.2x</option>
+                    <option value="1.5">1.5x</option>
+                </select>
+                <button class="action-btn" id="copy-text-btn">📝 コピー</button>
+                <label class="action-btn" style="margin-left:auto;">
+                    <input type="checkbox" id="toggle-markers-cb" checked> マーカー
+                </label>
+            </div>
+            <div class="marker-scroll-row" id="fixed-marker-palette"></div>
+        </div>
+
+        <main id="main-container">
+            <div class="panel main">
+                <div id="main-text-area" contenteditable="true" spellcheck="false" placeholder="ここにテキストを貼り付けてください..."></div>
+            </div>
+            <div class="panel manager closed" id="manager-panel">
+                <div class="panel-header" id="manager-header">
+                    <span>マーカー管理</span>
+                    <span id="toggle-manager-btn">▲</span>
+                </div>
+                <div id="marker-manager-list"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" style="margin:0;">名前変更</h3>
+            <input type="text" id="rename-input" style="width:100%; height:45px; font-size:18px; padding:5px;">
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="action-btn" id="modal-ok-btn">決定</button>
+                <button class="action-btn" id="modal-cancel-btn">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'memorize-v3-8';
+
+        class MarkerToolV3_8_0 {
+            constructor() {
+                this.state = {
+                    anchorLength: 10, isSpeaking: false, appData: { documents: [], rules: '' },
+                    currentDocIndex: 0, lastTapTime: 0, lastTapTarget: null,
+                    isProcessing: false, lastSpeechIndex: 0, fullTextForSpeech: "",
+                    user: null, cloudSyncTimer: null
+                };
+                this.DOC_COUNT = 20;
+                this.init();
+            }
+
+            async init() {
+                this.cacheElements();
+                this.loadState();
+                this.createFixedPalette();
+                this.bindEvents();
+                this.updateDocSelect();
+                this.updateDocumentView();
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        this.state.user = user;
+                        document.getElementById('user-id-display').textContent = `ID: ${user.uid}`;
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                });
+            }
+
+            cacheElements() {
+                this.editor = document.getElementById('main-text-area');
+                this.docSelect = document.getElementById('doc-select');
+                this.saveStatus = document.getElementById('save-status');
+                this.charCounter = document.getElementById('char-counter');
+                this.managerList = document.getElementById('marker-manager-list');
+                this.speechBtn = document.getElementById('speech-btn');
+                this.rateSelect = document.getElementById('speech-rate-select');
+            }
+
+            createFixedPalette() {
+                const palette = document.getElementById('fixed-marker-palette');
+                const styles = Array(14).fill({ type: 'E', value: '■' });
+                styles.forEach(style => {
+                    const btn = document.createElement('div');
+                    btn.className = 'palette-btn';
+                    btn.textContent = style.value;
+                    const handler = (e) => { e.preventDefault(); if(!this.state.isProcessing) this.applyMarkerToSelection(style); };
+                    btn.addEventListener('mousedown', handler);
+                    btn.addEventListener('touchstart', handler);
+                    palette.appendChild(btn);
+                });
+            }
+
+            bindEvents() {
+                const saveHandler = () => {
+                    if(this.state.isProcessing) return;
+                    this.saveCurrentToMemory();
+                    this.persist();
+                    this.updateCharCount();
+                    this.resetSpeech();
+                };
+                
+                this.editor.addEventListener('input', saveHandler);
+                this.editor.addEventListener('blur', saveHandler);
+                document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveHandler(); });
+
+                this.editor.addEventListener('click', (e) => this.handleClick(e));
+                this.editor.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    this.handlePaste((e.clipboardData || window.clipboardData).getData('text'));
+                });
+                
+                this.docSelect.addEventListener('change', (e) => this.switchDoc(parseInt(e.target.value)));
+                document.getElementById('rename-doc-btn').onclick = () => this.openRename();
+                document.getElementById('cloud-load-btn').onclick = () => this.loadFromCloud();
+                document.getElementById('manual-save-btn').onclick = () => this.saveToCloud(true);
+                document.getElementById('manager-header').onclick = () => document.getElementById('manager-panel').classList.toggle('closed');
+                document.getElementById('copy-text-btn').onclick = () => this.copyToClipboard();
+                document.getElementById('paste-text-btn').onclick = () => this.pasteFromClipboard();
+                document.getElementById('toggle-markers-cb').onchange = (e) => this.toggleVisibility(e.target.checked);
+                this.speechBtn.onclick = () => this.toggleSpeech();
+            }
+
+            // --- Logic: Variable Context (Solves Cosmos Problem) ---
+
+            getRaw() {
+                const extract = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.classList.contains('marker')) return node.dataset.originalText || '';
+                        if (node.tagName === 'BR') return '\n';
+                        let res = '';
+                        node.childNodes.forEach(c => res += extract(c));
+                        if (['DIV', 'P', 'LI'].includes(node.tagName) && res.length > 0) return res + '\n';
+                        return res;
+                    }
+                    return '';
+                };
+                return extract(this.editor).replace(/\n+$/, '').replace(/^\n+/, '');
+            }
+
+            getRawFromRange(range) {
+                const clone = range.cloneContents();
+                let text = "";
+                const extract = (node) => {
+                    if (node.nodeType === Node.TEXT_NODE) return node.textContent;
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        if (node.classList.contains('marker')) return node.dataset.originalText || '';
+                        let t = ""; node.childNodes.forEach(c => t += extract(c)); return t;
+                    }
+                    return "";
+                };
+                clone.childNodes.forEach(n => text += extract(n));
+                return text;
+            }
+
+            applyMarkerToSelection(style) {
+                const sel = window.getSelection();
+                if (!sel.rangeCount || sel.isCollapsed) return;
+                const range = sel.getRangeAt(0);
+                const hidden = range.toString().trim();
+                if (!hidden) return;
+
+                // 智力的解決: 前後の文字数を動的に取得（10文字に満たない文頭なども許容）
+                const getContext = (isBefore) => {
+                    const r = document.createRange();
+                    if(isBefore) {
+                        r.setStart(this.editor, 0); r.setEnd(range.startContainer, range.startOffset);
+                        return [...this.getRawFromRange(r)].slice(-this.state.anchorLength).join('');
+                    } else {
+                        r.setStart(range.endContainer, range.endOffset); r.setEnd(this.editor, this.editor.childNodes.length);
+                        return [...this.getRawFromRange(r)].slice(0, this.state.anchorLength).join('');
+                    }
+                };
+
+                const prefix = getContext(true);
+                const suffix = getContext(false);
+                const rule = `${this.state.currentDocIndex}::${prefix}[SEP]${suffix}->${hidden} %% ${style.type}${style.value}`;
+                
+                const rules = this.state.appData.rules.split('\n').filter(Boolean);
+                rules.push(rule);
+                this.state.appData.rules = rules.join('\n');
+                
+                this.applyRules();
+                sel.removeAllRanges();
+                this.persist();
+            }
+
+            applyRules() {
+                const raw = this.getRaw();
+                this.state.appData.documents[this.state.currentDocIndex].content = raw;
+                this.editor.innerHTML = '';
+                
+                let segments = [{ text: raw, type: 'text' }];
+                const rules = this.state.appData.rules.split('\n').filter(r => r.startsWith(this.state.currentDocIndex + '::'));
+                
+                rules.forEach(rule => {
+                    try {
+                        const [meta, body] = rule.split('->');
+                        const [ctx, style] = body.split(' %% ');
+                        const [prefix, suffix] = meta.split('::')[1].split('[SEP]');
+                        const pattern = prefix + ctx + suffix;
+
+                        for (let i = 0; i < segments.length; i++) {
+                            if (segments[i].type === 'text') {
+                                const idx = segments[i].text.indexOf(pattern);
+                                if (idx > -1) {
+                                    const start = idx + prefix.length;
+                                    segments.splice(i, 1, 
+                                        { text: segments[i].text.substring(0, start), type: 'text' },
+                                        { text: ctx, type: 'marker', style: style, rule: rule },
+                                        { text: segments[i].text.substring(start + ctx.length), type: 'text' }
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                    } catch(e) {}
+                });
+
+                segments.forEach(seg => {
+                    if (seg.type === 'text') {
+                        seg.text.split('\n').forEach((line, i, arr) => {
+                            if(line) this.editor.appendChild(document.createTextNode(line));
+                            if(i < arr.length - 1) this.editor.appendChild(document.createElement('br'));
+                        });
+                    } else {
+                        const span = document.createElement('span');
+                        span.className = 'marker';
+                        span.dataset.originalText = seg.text;
+                        span.dataset.style = seg.style;
+                        span.dataset.fullRule = seg.rule;
+                        span.textContent = seg.style.substring(1).repeat(seg.text.length);
+                        this.editor.appendChild(span);
+                    }
+                });
+                this.renderManager();
+                this.updateCharCount();
+            }
+
+            // --- UI & Interaction ---
+
+            handleClick(e) {
+                const m = e.target.closest('.marker');
+                if (!m) { this.clearReveals(); return; }
+                const now = Date.now();
+                if (now - this.state.lastTapTime < 300 && this.state.lastTapTarget === m) {
+                    if(confirm("削除しますか？")) this.removeRule(m.dataset.fullRule);
+                } else {
+                    if (m.classList.contains('reveal')) {
+                        m.classList.remove('reveal');
+                        m.textContent = m.dataset.style.substring(1).repeat(m.dataset.originalText.length);
+                    } else {
+                        this.clearReveals();
+                        m.classList.add('reveal');
+                        m.textContent = m.dataset.originalText;
+                    }
+                    this.state.lastTapTime = now; this.state.lastTapTarget = m;
+                }
+            }
+
+            clearReveals() {
+                this.editor.querySelectorAll('.marker.reveal').forEach(m => {
+                    m.classList.remove('reveal');
+                    m.textContent = m.dataset.style.substring(1).repeat(m.dataset.originalText.length);
+                });
+            }
+
+            removeRule(rule) {
+                const rules = this.state.appData.rules.split('\n');
+                const i = rules.indexOf(rule);
+                if (i > -1) {
+                    rules.splice(i, 1);
+                    this.state.appData.rules = rules.join('\n');
+                    this.applyRules();
+                    this.persist();
+                }
+            }
+
+            renderManager() {
+                this.managerList.innerHTML = '';
+                const rules = this.state.appData.rules.split('\n').filter(r => r.startsWith(this.state.currentDocIndex + '::'));
+                if(!rules.length) { this.managerList.innerHTML = '<p style="text-align:center;color:#9ca3af;">なし</p>'; return; }
+                rules.forEach(rule => {
+                    const item = document.createElement('div');
+                    item.className = 'manager-item';
+                    const [meta, body] = rule.split('->');
+                    const [hidden, style] = body.split(' %% ');
+                    item.innerHTML = `<div class="manager-item-icon">${style.substring(1)}</div><div class="manager-item-text">${hidden}</div><button class="manager-item-delete">×</button>`;
+                    item.querySelector('.manager-item-delete').onclick = (e) => { e.stopPropagation(); this.removeRule(rule); };
+                    item.onclick = () => {
+                        const el = this.editor.querySelector(`.marker[data-full-rule="${CSS.escape(rule)}"]`);
+                        if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('reveal'); el.textContent = el.dataset.originalText; }
+                    };
+                    this.managerList.appendChild(item);
+                });
+            }
+
+            // --- Persistence & Sync ---
+
+            saveCurrentToMemory() {
+                this.state.appData.documents[this.state.currentDocIndex].content = this.getRaw();
+            }
+
+            persist() {
+                localStorage.setItem('markerTool_v3_8', JSON.stringify(this.state.appData));
+                this.saveStatus.textContent = "✓ 保存済";
+                this.saveStatus.classList.add('saved');
+                clearTimeout(this.state.cloudSyncTimer);
+                this.state.cloudSyncTimer = setTimeout(() => this.saveToCloud(), 3000);
+            }
+
+            async saveToCloud(manual = false) {
+                if (!this.state.user) return;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'users', this.state.user.uid, 'data', 'main');
+                    await setDoc(docRef, this.state.appData);
+                    this.saveStatus.textContent = "☁ 同期完了";
+                    if(manual) alert("クラウドへ書き込みました。");
+                    setTimeout(() => this.saveStatus.textContent = "", 2000);
+                } catch (e) { this.saveStatus.textContent = "❌ 失敗"; }
+            }
+
+            async loadFromCloud() {
+                if (!this.state.user || !confirm("クラウドから読込ますか？")) return;
+                const snap = await getDoc(doc(db, 'artifacts', appId, 'users', this.state.user.uid, 'data', 'main'));
+                if (snap.exists()) {
+                    this.state.appData = snap.data();
+                    this.persist(); this.updateDocSelect(); this.updateDocumentView();
+                    alert("読込完了");
+                } else alert("データがありません");
+            }
+
+            loadState() {
+                const s = localStorage.getItem('markerTool_v3_8');
+                if (s) this.state.appData = JSON.parse(s);
+                else {
+                    this.state.appData = { documents: [], rules: '' };
+                    for(let i=1; i<=this.DOC_COUNT; i++) this.state.appData.documents.push({title: `文章 ${i}`, content: ''});
+                }
+            }
+
+            updateDocSelect() {
+                this.docSelect.innerHTML = this.state.appData.documents.map((d,i) => `<option value="${i}">${d.title}</option>`).join('');
+                this.docSelect.value = this.state.currentDocIndex;
+            }
+
+            switchDoc(i) {
+                if(this.state.isProcessing) return;
+                this.state.isProcessing = true;
+                this.saveCurrentToMemory(); this.persist();
+                this.state.currentDocIndex = i;
+                this.updateDocumentView();
+                this.resetSpeech();
+                setTimeout(() => this.state.isProcessing = false, 300);
+            }
+
+            updateDocumentView() {
+                this.docSelect.value = this.state.currentDocIndex;
+                this.editor.innerText = this.state.appData.documents[this.state.currentDocIndex].content || '';
+                this.applyRules();
+            }
+
+            updateCharCount() { this.charCounter.textContent = `${this.getRaw().length}文字`; }
+
+            // --- Clipboard & Speech ---
+
+            handlePaste(text) {
+                if(!text) return;
+                const clean = text.replace(/\r/g, '');
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0) {
+                    const r = sel.getRangeAt(0); r.deleteContents();
+                    const n = document.createTextNode(clean); r.insertNode(n);
+                    r.setStartAfter(n); r.setEndAfter(n);
+                    sel.removeAllRanges(); sel.addRange(r);
+                } else this.editor.appendChild(document.createTextNode(clean));
+                this.saveCurrentToMemory(); this.persist(); this.applyRules();
+            }
+
+            copyToClipboard() { navigator.clipboard.writeText(this.getRaw()).then(() => alert("コピーしました")); }
+            pasteFromClipboard() {
+                navigator.clipboard.readText().then(t => this.handlePaste(t)).catch(() => alert("長押しで貼り付けてください"));
+            }
+
+            toggleVisibility(show) {
+                this.editor.querySelectorAll('.marker').forEach(m => {
+                    m.classList.remove('reveal');
+                    if (show) {
+                        m.textContent = m.dataset.style.substring(1).repeat(m.dataset.originalText.length);
+                        m.style.display = 'inline'; m.style.borderBottom = '2px solid rgba(0,0,0,0.1)';
+                    } else {
+                        m.textContent = m.dataset.originalText;
+                        m.style.display = 'inline'; m.style.borderBottom = 'none';
+                    }
+                });
+            }
+
+            openRename() {
+                const modal = document.getElementById('modal-overlay');
+                const input = document.getElementById('rename-input');
+                modal.style.display = 'flex';
+                input.value = this.state.appData.documents[this.state.currentDocIndex].title;
+                document.getElementById('modal-ok-btn').onclick = () => {
+                    if(input.value.trim()) {
+                        this.state.appData.documents[this.state.currentDocIndex].title = input.value.trim();
+                        this.updateDocSelect(); this.persist();
+                    }
+                    modal.style.display = 'none';
+                };
+                document.getElementById('modal-cancel-btn').onclick = () => modal.style.display = 'none';
+            }
+
+            resetSpeech() {
+                this.state.lastSpeechIndex = 0; this.state.fullTextForSpeech = "";
+                if (!this.state.isSpeaking) this.speechBtn.textContent = "🔊 読上";
+            }
+
+            toggleSpeech() {
+                if(this.state.isSpeaking) {
+                    window.speechSynthesis.cancel(); this.state.isSpeaking = false;
+                    this.speechBtn.textContent = "🔊 続き"; return;
+                }
+                const raw = this.getRaw();
+                if (this.state.fullTextForSpeech !== raw) { this.state.lastSpeechIndex = 0; this.state.fullTextForSpeech = raw; }
+                const txt = raw.substring(this.state.lastSpeechIndex);
+                if(!txt.trim()) { alert("テキストがありません"); this.resetSpeech(); return; }
+
+                window.speechSynthesis.cancel();
+                const u = new SpeechSynthesisUtterance(txt);
+                u.lang = 'ja-JP'; u.rate = parseFloat(this.rateSelect.value);
+                u.onboundary = (e) => this.state.lastSpeechIndex = (raw.length - txt.length) + e.charIndex;
+                u.onend = () => { this.state.isSpeaking = false; this.speechBtn.textContent = "🔊 読上"; this.state.lastSpeechIndex = 0; };
+                window.speechSynthesis.speak(u);
+                this.state.isSpeaking = true; this.speechBtn.textContent = "⏸ 中断";
+            }
+        }
+        window.onload = () => new MarkerToolV3_8_0();
+    </script>
+</body>
+</html>
