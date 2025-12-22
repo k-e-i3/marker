@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗記ツール v5.7.1</title>
+    <title>暗記ツール v5.7.4</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -49,7 +49,7 @@
         .marker-scroll-row { 
             display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; 
             scrollbar-width: none; -webkit-overflow-scrolling: touch;
-            flex-wrap: nowrap; /* モバイルではスクロールさせる */
+            flex-wrap: nowrap; 
         }
         .palette-btn {
             width: 44px; height: 42px; flex-shrink: 0; border-radius: 8px; cursor: pointer; 
@@ -75,7 +75,7 @@
         #marker-manager-list { overflow-y: auto; flex-grow: 1; padding: 8px; }
         .manager-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #e2e8f0; background: #fff; gap: 12px; border-radius: 4px; margin-bottom: 4px; }
         .manager-item-text { flex-grow: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .manager-item-delete { border: 1px solid #fca5a5; background: #fee2e2; color: #dc2626; width: 40px; height: 38px; border-radius: 6px; font-size: 20px; }
+        .manager-item-delete { border: 1px solid #fca5a5; background: #fee2e2; color: #dc2626; width: 40px; height: 38px; border-radius: 6px; font-size: 20px; cursor: pointer; }
         
         .marker { 
             cursor: pointer; border-radius: 2px; user-select: none; transition: all 0.2s; padding: 0 1px; margin: 0 1px;
@@ -93,7 +93,15 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.7); z-index: 9999; display: none; justify-content: center; align-items: center;
         }
-        .modal-content { background: #fff; width: 92%; max-width: 480px; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+        .modal-content { 
+            background: #fff; width: 92%; max-width: 480px; border-radius: 12px; padding: 24px; 
+            display: flex; flex-direction: column; gap: 16px; 
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); 
+        }
+        #sync-id-input {
+            width: 100%; height: 44px; border: 1px solid #cbd5e0; border-radius: 8px; 
+            padding: 0 12px; font-weight: bold; font-size: 20px; -webkit-appearance: none;
+        }
     </style>
 </head>
 <body>
@@ -148,11 +156,11 @@
             <h3 id="modal-title" style="margin:0; color: #1e293b;">同期ID設定</h3>
             <div id="sync-view">
                 <p style="font-size:13px; color:#475569;">同期用IDを入力（例: 513042042）:</p>
-                <input type="text" id="sync-id-input" placeholder="番号を入力" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; margin-bottom:12px; padding:0 12px; font-weight:bold; font-size:20px; -webkit-appearance: none;">
-                <p style="font-size:11px; color:#64748b;">※別の端末でも同じ数字を入力すれば共通の文章を同期できます。</p>
+                <input type="text" id="sync-id-input" placeholder="番号を入力">
+                <p style="font-size:11px; color:#64748b; margin-top: 8px;">※同じ数字を入力すれば共通の文章を同期できます。</p>
             </div>
             <div id="rename-view" style="display:none;">
-                <input type="text" id="rename-input" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; padding:0 12px;">
+                <input type="text" id="rename-input" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; padding: 0 12px;">
             </div>
             <div style="display:flex; justify-content:flex-end; gap:12px;">
                 <button class="action-btn" id="modal-ok-btn" style="background:#2563eb; color:white; border:none; min-width:80px;">決定</button>
@@ -212,7 +220,7 @@
                         } else {
                             await signInAnonymously(auth);
                         }
-                    } catch (e) { console.error("Auth failed", e); }
+                    } catch (e) { console.error("Auth Failure", e); }
                 };
                 await initAuth();
 
@@ -246,7 +254,7 @@
 
             updateIdBadge() {
                 if(this.saveStatus) {
-                    this.saveStatus.textContent = this.state.syncId ? `ID: ${this.state.syncId}` : "ID未設定";
+                    this.saveStatus.textContent = `ID: ${this.state.syncId}`;
                 }
             }
 
@@ -258,7 +266,6 @@
                     const btn = document.createElement('div');
                     btn.className = 'palette-btn';
                     btn.style.backgroundColor = c.code;
-                    // pointerdownでモバイル・iPad双方に対応
                     btn.addEventListener('pointerdown', (e) => {
                         e.preventDefault();
                         this.createMarker(c.id);
@@ -388,11 +395,15 @@
                 rules.forEach(r => {
                     if(!r.includes('->')) return;
                     const parts = r.split('->')[1].split('%%');
-                    const code = this.colors.find(c => 'C'+c.id === parts[1] || c.id === parts[1])?.code || '#ef4444';
+                    const colorName = parts[1].replace('C', '');
+                    const code = this.colors.find(c => c.id === colorName)?.code || '#ef4444';
                     const item = document.createElement('div');
                     item.className = 'manager-item';
                     item.innerHTML = `<div style="width:20px;height:20px;background:${code};border-radius:3px"></div><div class="manager-item-text">${parts[0]}</div><button class="manager-item-delete">×</button>`;
-                    item.querySelector('.manager-item-delete').addEventListener('click', (e) => { e.stopPropagation(); this.delRule(r); });
+                    item.querySelector('.manager-item-delete').addEventListener('click', (e) => { 
+                        e.stopPropagation(); 
+                        this.delRule(r); 
+                    });
                     item.addEventListener('click', () => {
                         const el = Array.from(this.editor.querySelectorAll('.marker')).find(m => m.dataset.rule === r);
                         if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('reveal'); }
@@ -412,11 +423,11 @@
             }
 
             async saveCloud(manual = false) {
-                if (!this.state.syncId || !this.state.user) { if(manual) this.showStatus("IDを設定してください"); return; }
+                if (!this.state.syncId || !this.state.user) { if(manual) this.showStatus("ID設定必須"); return; }
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
                     await setDoc(docRef, { ...this.state.appData, lastUpdated: new Date().toISOString() });
-                    this.showStatus("クラウドへ保存しました");
+                    this.showStatus("保存完了");
                 } catch(e) { this.showStatus("保存失敗"); }
             }
 
