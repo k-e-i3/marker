@@ -1,805 +1,545 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
-  <title>暗記ツール v5.3.0 (Stable Android TTS + Position Marker)</title>
-  <style>
-    :root{
-      --bg-color:#f8fafc; --main-bg:#ffffff;
-      --text-color:#1e293b; --border-color:#cbd5e0;
-      --header-bg:#0f172a; --header-text:#ffffff;
-      --button-bg:#334155; --toolbar-bg:#f1f5f9;
-      --highlight-bg:#fffde7;
-    }
-    *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-    body{
-      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-      margin:0; background:var(--bg-color); color:var(--text-color);
-      overflow:hidden; height:100vh; width:100vw;
-    }
-    #app-root{ position:fixed; inset:0; display:flex; flex-direction:column; }
-    header{
-      background:var(--header-bg); color:var(--header-text);
-      padding:8px 12px; display:flex; align-items:center; gap:8px; flex-shrink:0;
-    }
-    .doc-controls{ display:flex; flex-grow:1; gap:8px; align-items:center; min-width:0; }
-    select#doc-select{
-      flex-grow:1; min-width:0;
-      height:38px; font-size:16px; border-radius:6px; border:1px solid #475569;
-      background:#334155; color:white;
-    }
-    button.icon-btn{
-      height:38px; width:44px; display:flex; justify-content:center; align-items:center;
-      background:var(--button-bg); border:1px solid rgba(255,255,255,0.1);
-      border-radius:6px; color:white; font-size:20px; cursor:pointer; flex-shrink:0;
-    }
-    #char-counter{ font-size:10px; color:#fff; font-weight:bold; margin-left:auto; text-align:right; line-height:1.2; white-space:nowrap; }
-    #toolbar-container{
-      background:var(--toolbar-bg); padding:8px; border-bottom:1px solid var(--border-color);
-      display:flex; flex-direction:column; gap:8px; flex-shrink:0;
-    }
-    .action-row{ display:flex; align-items:center; gap:10px; overflow-x:auto; }
-    .action-btn{
-      background:#fff; border:1px solid #cbd5e0; color:#334155;
-      font-size:14px; padding:0 14px; border-radius:6px; cursor:pointer;
-      height:36px; white-space:nowrap;
-    }
-    .marker-scroll-row{ display:flex; gap:10px; overflow-x:auto; padding:4px 0; scrollbar-width:none; }
-    .palette-btn{
-      width:44px; height:42px; flex-shrink:0; border-radius:8px; cursor:pointer;
-      border:2px solid rgba(0,0,0,0.15);
-    }
-    main{ display:flex; flex-direction:column; flex-grow:1; overflow:hidden; background:var(--main-bg); }
-    #main-text-area{
-      flex-grow:1; padding:24px; font-size:19px; line-height:1.9;
-      white-space:pre-wrap; word-wrap:break-word; overflow-y:auto; outline:none;
-    }
-    #main-text-area:empty::before{ content:attr(placeholder); color:#94a3b8; }
-    .panel.manager{
-      flex-shrink:0; border-top:1px solid var(--border-color); background:#f8fafc;
-      height:35vh; transition:height .25s; display:flex; flex-direction:column;
-    }
-    .panel.manager.closed{ height:42px; }
-    .panel-header{
-      padding:0 12px; height:42px; display:flex; align-items:center; justify-content:space-between;
-      background:#f1f5f9; cursor:pointer; font-size:14px; font-weight:600; border-bottom:1px solid #e2e8f0;
-    }
-    #marker-manager-list{ overflow-y:auto; flex-grow:1; padding:8px; }
-    .manager-item{ display:flex; align-items:center; padding:10px; border-bottom:1px solid #e2e8f0; background:#fff; gap:10px; }
-    .manager-item-text{ flex-grow:1; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .manager-item-delete{ border:1px solid #fca5a5; background:#fee2e2; color:#dc2626; width:40px; height:36px; border-radius:6px; font-size:20px; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <title>暗記ツール v5.6.5</title>
+    <style>
+        :root {
+            --bg-color: #f8fafc; --main-bg: #ffffff;
+            --text-color: #1e293b; --border-color: #cbd5e0;
+            --header-bg: #0f172a; --header-text: #ffffff;
+            --button-bg: #334155; --button-hover-bg: #1e293b;
+            --highlight-bg: #fffde7; --toolbar-bg: #f1f5f9;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0; background-color: var(--bg-color); color: var(--text-color);
+            overflow: hidden; height: 100vh; width: 100vw;
+        }
+        #app-root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
+        header {
+            background-color: var(--header-bg); color: var(--header-text);
+            padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 54px;
+        }
+        .doc-controls { display: flex; flex-grow: 1; gap: 8px; align-items: center; }
+        select#doc-select {
+            flex-grow: 1; height: 38px; font-size: 16px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white;
+        }
+        button.icon-btn {
+            height: 38px; width: 44px; display: flex; justify-content: center; align-items: center;
+            background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.1); 
+            border-radius: 6px; color: white; font-size: 20px; cursor: pointer; flex-shrink: 0;
+        }
+        .meta-info { text-align: right; line-height: 1.2; margin-left: auto; display: flex; flex-direction: column; justify-content: center; }
+        #char-counter { font-size: 10px; color: #ffffff; font-weight: bold; }
+        #save-status { font-size: 9px; color: #94a3b8; }
+        
+        #toolbar-container {
+            background-color: var(--toolbar-bg); padding: 8px; border-bottom: 1px solid var(--border-color);
+            display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
+        }
+        .action-row { display: flex; align-items: center; gap: 10px; overflow-x: auto; }
+        .action-btn {
+            background: #fff; border: 1px solid #cbd5e0; color: #334155;
+            font-size: 14px; padding: 0 14px; border-radius: 6px; cursor: pointer; height: 36px; white-space: nowrap;
+        }
+        .palette-btn {
+            width: 44px; height: 42px; flex-shrink: 0; border-radius: 8px; cursor: pointer; 
+            border: 2px solid rgba(0,0,0,0.15); box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        main { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; position: relative; background: var(--main-bg); }
+        #main-text-area {
+            flex-grow: 1; padding: 24px; font-size: 19px; line-height: 1.9;
+            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
+        }
+        .panel.manager {
+            flex-shrink: 0; border-top: 1px solid var(--border-color); background: #f8fafc;
+            height: 35vh; transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1); display: flex; flex-direction: column;
+        }
+        .panel.manager.closed { height: 42px; }
+        .panel-header {
+            padding: 0 12px; height: 42px; display: flex; align-items: center; justify-content: space-between;
+            background-color: #f1f5f9; cursor: pointer; font-size: 14px; font-weight: 600; border-bottom: 1px solid #e2e8f0;
+        }
+        #marker-manager-list { overflow-y: auto; flex-grow: 1; padding: 8px; }
+        .manager-item { display: flex; align-items: center; padding: 12px; border-bottom: 1px solid #e2e8f0; background: #fff; gap: 12px; border-radius: 4px; margin-bottom: 4px; }
+        .manager-item-text { flex-grow: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .manager-item-delete { border: 1px solid #fca5a5; background: #fee2e2; color: #dc2626; width: 40px; height: 38px; border-radius: 6px; font-size: 20px; }
+        
+        .marker { 
+            cursor: pointer; border-radius: 2px; user-select: none; transition: all 0.2s; padding: 0 2px; margin: 0 1px;
+            display: inline-block; line-height: 1.2; border-bottom: 2px solid rgba(0,0,0,0.1);
+        }
+        .marker[data-color="red"] { background-color: #ef4444; color: #ef4444; }
+        .marker[data-color="orange"] { background-color: #f97316; color: #f97316; }
+        .marker[data-color="yellow"] { background-color: #eab308; color: #eab308; }
+        .marker[data-color="green"] { background-color: #22c55e; color: #22c55e; }
+        .marker[data-color="blue"] { background-color: #3b82f6; color: #3b82f6; }
+        .marker[data-color="purple"] { background-color: #a855f7; color: #a855f7; }
+        .marker.reveal { background-color: var(--highlight-bg) !important; color: var(--text-color) !important; border-bottom: 2px solid transparent; }
 
-    /* marker: 文字色=背景色で隠す（revealで表示） */
-    .marker{
-      cursor:pointer; border-radius:2px; user-select:none; transition:all .15s;
-      padding:0 1px; margin:0 1px; display:inline-block; line-height:1.2;
-      border-bottom:2px solid rgba(0,0,0,0.1);
-    }
-    .marker[data-color="red"]{ background:#ef4444; color:#ef4444; }
-    .marker[data-color="orange"]{ background:#f97316; color:#f97316; }
-    .marker[data-color="yellow"]{ background:#eab308; color:#eab308; }
-    .marker[data-color="green"]{ background:#22c55e; color:#22c55e; }
-    .marker[data-color="blue"]{ background:#3b82f6; color:#3b82f6; }
-    .marker[data-color="purple"]{ background:#a855f7; color:#a855f7; }
-    .marker.reveal{
-      background:var(--highlight-bg) !important;
-      color:var(--text-color) !important;
-      border-bottom:2px solid transparent;
-    }
-
-    #toast{
-      position:fixed; left:50%; bottom:16px; transform:translateX(-50%);
-      background:rgba(15,23,42,0.92); color:#fff; padding:10px 12px;
-      border-radius:10px; font-size:12px; z-index:2000; display:none; max-width:92vw;
-    }
-
-    #modal-overlay{
-      position:fixed; inset:0; background:rgba(0,0,0,0.6);
-      z-index:1000; display:none; justify-content:center; align-items:center;
-    }
-    .modal-content{
-      background:#fff; width:92%; max-width:520px; border-radius:12px;
-      padding:24px; display:flex; flex-direction:column; gap:16px;
-    }
-    #emergency-paste{
-      width:100%; height:120px; font-size:13px;
-      border:1px dashed #f87171; border-radius:6px; padding:8px;
-    }
-    .muted{ font-size:12px; color:#64748b; line-height:1.4; }
-  </style>
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center;
+        }
+        .modal-content { background: #fff; width: 92%; max-width: 500px; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+    </style>
 </head>
 <body>
-  <div id="app-root">
-    <header>
-      <div class="doc-controls">
-        <select id="doc-select"></select>
-        <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
-        <button id="cloud-load-btn" class="icon-btn" title="同期読込" style="background:#2563eb;">☁</button>
-        <button id="manual-save-btn" class="icon-btn" title="同期保存" style="background:#059669;">💾</button>
-        <button id="sync-setup-btn" class="icon-btn" title="設定/復旧" style="background:#d97706;">🔑</button>
-      </div>
-      <div id="char-counter">0文字</div>
-    </header>
+    <div id="app-root">
+        <header>
+            <div class="doc-controls">
+                <select id="doc-select"></select>
+                <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
+                <button id="cloud-load-btn" class="icon-btn" title="同期読込" style="background:#2563eb;">☁</button>
+                <button id="manual-save-btn" class="icon-btn" title="同期保存" style="background:#059669;">💾</button>
+                <button id="sync-setup-btn" class="icon-btn" title="設定" style="background:#d97706;">🔑</button>
+            </div>
+            <div class="meta-info">
+                <div id="char-counter">0文字</div>
+                <div id="save-status">Connecting...</div>
+            </div>
+        </header>
 
-    <div id="toolbar-container">
-      <div class="action-row">
-        <button class="action-btn" id="paste-btn">📋 貼付</button>
-        <button class="action-btn" id="speech-btn" style="min-width:90px; font-weight:bold;">▶ 読上</button>
-        <select id="speech-rate-select" class="action-btn">
-          <option value="0.6">0.6x</option>
-          <option value="0.8">0.8x</option>
-          <option value="1.0" selected>1.0x</option>
-          <option value="1.2">1.2x</option>
-        </select>
-        <button class="action-btn" id="copy-btn">📄 コピー</button>
-        <label class="action-btn" style="margin-left:auto; display:flex; align-items:center; gap:6px;">
-          <input type="checkbox" id="toggle-markers-cb" checked> 隠す
-        </label>
-      </div>
-      <div class="marker-scroll-row" id="marker-palette"></div>
+        <div id="toolbar-container">
+            <div class="action-row">
+                <button class="action-btn" id="paste-btn">📋 貼付</button>
+                <button class="action-btn" id="speech-btn" style="min-width: 80px; font-weight: bold; border-color: #3b82f6; color: #2563eb;">▶ 読上</button>
+                <select id="speech-rate-select" class="action-btn">
+                    <option value="0.6">0.6x</option>
+                    <option value="0.8">0.8x</option>
+                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.2">1.2x</option>
+                    <option value="1.5">1.5x</option>
+                </select>
+                <button class="action-btn" id="copy-btn">📄 本文コピー</button>
+                <label class="action-btn" style="margin-left:auto; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" id="toggle-markers-cb" checked> 隠す
+                </label>
+            </div>
+            <div class="marker-scroll-row" id="marker-palette" style="display:flex; gap:10px; overflow-x:auto;"></div>
+        </div>
+
+        <main>
+            <div id="main-text-area" contenteditable="true" spellcheck="false" placeholder="文章を入力して保存してください..."></div>
+            <div class="panel manager closed" id="manager-panel">
+                <div class="panel-header" id="manager-header">
+                    <span>隠蔽箇所一覧</span>
+                    <span id="toggle-manager-icon">▲</span>
+                </div>
+                <div id="marker-manager-list"></div>
+            </div>
+        </main>
     </div>
 
-    <main>
-      <div id="main-text-area" contenteditable="true" spellcheck="false" placeholder="文章を入力し、範囲選択して色を押すと隠せます..."></div>
-      <div class="panel manager closed" id="manager-panel">
-        <div class="panel-header" id="manager-header">
-          <span>マーカー一覧</span>
-          <span id="toggle-manager-icon">▲</span>
+    <div id="modal-overlay">
+        <div class="modal-content">
+            <h3 id="modal-title" style="margin:0; color: #1e293b;">同期ID設定</h3>
+            <div id="sync-view">
+                <p style="font-size:13px; color:#475569;">同期用IDを入力（例: 513042042）:</p>
+                <input type="text" id="sync-id-input" placeholder="ここに入力して決定" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; margin-bottom:12px; padding:0 12px; font-weight:bold; font-size:18px;">
+                <p style="font-size:11px; color:#64748b;">※設定したIDは保存され、次回起動時も自動的に使用されます。</p>
+            </div>
+            <div id="rename-view" style="display:none;">
+                <input type="text" id="rename-input" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; padding:0 12px;">
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px;">
+                <button class="action-btn" id="modal-ok-btn" style="background:#2563eb; color:white; border:none; width:80px;">決定</button>
+                <button class="action-btn" id="modal-cancel-btn" style="width:80px;">閉じる</button>
+            </div>
         </div>
-        <div id="marker-manager-list"></div>
-      </div>
-    </main>
-  </div>
-
-  <div id="toast"></div>
-
-  <div id="modal-overlay">
-    <div class="modal-content">
-      <h3 style="margin:0;">設定・資産復旧</h3>
-
-      <div id="sync-view" style="display:none;">
-        <div class="muted">
-          同期IDを同じにすると複数端末で共有します。<br/>
-          ※Androidで音声が鳴らない場合は、まずChromeで開いて試してください（WebViewでは制限があることがあります）。
-        </div>
-        <p style="font-size:12px; margin:0;">同期用ID：</p>
-        <input type="text" id="sync-id-input" style="width:100%; height:40px; border:1px solid #ccc; border-radius:8px; padding:0 12px;">
-        <p style="font-size:12px; color:#ef4444; font-weight:bold; margin:0;">緊急文章復旧（ここに貼って決定）：</p>
-        <textarea id="emergency-paste" placeholder="コピーしておいた文章をここに貼り付けて「決定」を押すと復旧します。"></textarea>
-      </div>
-
-      <div id="rename-view">
-        <input type="text" id="rename-input" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; padding:0 12px;">
-      </div>
-
-      <div style="display:flex; justify-content:flex-end; gap:12px;">
-        <button class="action-btn" id="modal-ok-btn" style="background:#2563eb; color:white; border:none;">決定</button>
-        <button class="action-btn" id="modal-cancel-btn">閉じる</button>
-      </div>
     </div>
-  </div>
 
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-    const firebaseConfig = JSON.parse(__firebase_config);
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db = getFirestore(app);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'memorize-tool-v5';
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'memorize-tool-v5'; 
 
-    class MarkerToolV5_3_0 {
-      constructor() {
-        this.state = {
-          appData: { documents: Array.from({length:20}, (_,i)=>({title:`文章 ${i+1}`, content:''})), rules: '' },
-          currentDocIndex: 0,
-          syncId: localStorage.getItem('sync_id_v5_final') || null,
-          user: null,
-          isSpeaking: false,
-          lastTapTime: 0,
-          lastTapTarget: null,
-          cloudTimer: null,
-          voicesReady: false,
-          lastSpeakAt: 0,
-        };
-
-        this.colors = [
-          { id:'red', code:'#ef4444' }, { id:'orange', code:'#f97316' },
-          { id:'yellow', code:'#eab308' }, { id:'green', code:'#22c55e' },
-          { id:'blue', code:'#3b82f6' }, { id:'purple', code:'#a855f7' }
-        ];
-
-        this.STORAGE_KEY = 'memorize_v5_stable';
-        this.SYNC_KEY = 'sync_id_v5_final';
-
-        this.init();
-      }
-
-      toast(msg, ms=2500){
-        const t = document.getElementById('toast');
-        if(!t) return;
-        t.textContent = msg;
-        t.style.display = 'block';
-        clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(()=>{ t.style.display='none'; }, ms);
-      }
-
-      async init(){
-        this.editor = document.getElementById('main-text-area');
-        this.docSelect = document.getElementById('doc-select');
-        this.charCounter = document.getElementById('char-counter');
-        this.speechBtn = document.getElementById('speech-btn');
-
-        this.performMigration();
-        this.renderPalette();
-        this.bindEvents();
-        this.warmupVoices();
-
-        onAuthStateChanged(auth, async (u) => {
-          if (u) {
-            this.state.user = u;
-            if(!this.state.syncId) this.state.syncId = u.uid;
-            await this.loadCloud(false);
-            this.refresh();
-          } else {
-            try{
-              if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await signInWithCustomToken(auth, __initial_auth_token);
-              } else {
-                await signInAnonymously(auth);
-              }
-            }catch(e){}
-          }
-        });
-      }
-
-      // --- Migration: v4/v5旧形式を拾う（壊れても諦めずまず文章は救う）
-      performMigration(){
-        const keys = ['memorize_v5_stable', 'memorize_persistent_v4', 'marker_v4_final', 'marker_v4_fixed'];
-        for(const k of keys){
-          const s = localStorage.getItem(k);
-          if(!s) continue;
-          try{
-            const d = JSON.parse(s);
-            if(d && d.documents && Array.isArray(d.documents)){
-              // 最低限documentsがあれば採用
-              this.state.appData = {
-                documents: d.documents.map((x,i)=>({ title: x.title || `文章 ${i+1}`, content: x.content || '' })),
-                rules: d.rules || ''
-              };
-              break;
+        class MarkerToolV5 {
+            constructor() {
+                // localStorageから保存されたIDを厳格に取得
+                const savedId = localStorage.getItem('user_numeric_id');
+                this.state = {
+                    appData: { documents: Array.from({length:20}, (_,i)=>({title:`文章 ${i+1}`, content:''})), rules: '' },
+                    currentDocIndex: 0,
+                    syncId: savedId || null,
+                    user: null,
+                    isSpeaking: false,
+                    lastSpeechIndex: 0,
+                    fullTextForSpeech: ""
+                };
+                this.resumeTimer = null;
+                this.lastTapTime = 0;
+                this.lastTapTarget = null;
+                this.colors = [
+                    { id: 'red', code: '#ef4444' }, { id: 'orange', code: '#f97316' },
+                    { id: 'yellow', code: '#eab308' }, { id: 'green', code: '#22c55e' },
+                    { id: 'blue', code: '#3b82f6' }, { id: 'purple', code: '#a855f7' }
+                ];
             }
-          }catch(e){}
-        }
-        // documentsが少ない等の補完
-        if(!this.state.appData.documents || this.state.appData.documents.length < 20){
-          const cur = this.state.appData.documents || [];
-          this.state.appData.documents = Array.from({length:20}, (_,i)=>cur[i] || ({title:`文章 ${i+1}`, content:''}));
-        }
-        this.persistLocal();
-      }
 
-      persistLocal(){
-        localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.state.appData));
-        localStorage.setItem(this.SYNC_KEY, this.state.syncId || '');
-      }
+            async init() {
+                this.editor = document.getElementById('main-text-area');
+                this.docSelect = document.getElementById('doc-select');
+                this.saveStatus = document.getElementById('save-status');
+                this.charCounter = document.getElementById('char-counter');
+                this.speechBtn = document.getElementById('speech-btn');
+                
+                this.performMigration(); 
+                this.renderPalette();
+                this.bindEvents();
 
-      renderPalette(){
-        const p = document.getElementById('marker-palette');
-        p.innerHTML = '';
-        this.colors.forEach(c=>{
-          const btn = document.createElement('div');
-          btn.className = 'palette-btn';
-          btn.style.backgroundColor = c.code;
-          // selectionが消えないようにmousedown/ touchstart + preventDefault
-          btn.onmousedown = (e)=>{ e.preventDefault(); this.createMarker(c.id); };
-          btn.ontouchstart = (e)=>{ e.preventDefault(); this.createMarker(c.id); };
-          p.appendChild(btn);
-        });
-      }
+                // 認証先行
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (e) {}
+                };
+                await initAuth();
 
-      bindEvents(){
-        this.editor.oninput = ()=>{
-          this.state.appData.documents[this.state.currentDocIndex].content = this.editor.innerText;
-          this.autoPersist();
-        };
-
-        this.editor.onclick = (e)=>this.handleEditorClick(e);
-
-        this.docSelect.onchange = (e)=>{
-          this.state.appData.documents[this.state.currentDocIndex].content = this.editor.innerText;
-          this.state.currentDocIndex = parseInt(e.target.value);
-          this.refresh();
-          this.persistLocal();
-        };
-
-        document.getElementById('rename-doc-btn').onclick = ()=>this.openRename();
-        document.getElementById('cloud-load-btn').onclick = ()=>this.loadCloud(true);
-        document.getElementById('manual-save-btn').onclick = ()=>this.saveCloud(true);
-        document.getElementById('sync-setup-btn').onclick = ()=>this.openSyncSetup();
-        document.getElementById('manager-header').onclick = ()=>document.getElementById('manager-panel').classList.toggle('closed');
-
-        this.speechBtn.onclick = ()=>this.toggleSpeech();
-
-        document.getElementById('copy-btn').onclick = ()=>{
-          navigator.clipboard.writeText(this.editor.innerText).then(()=>this.toast("コピーしました"));
-        };
-
-        document.getElementById('paste-btn').onclick = ()=>{
-          navigator.clipboard.readText().then(t=>{
-            if(!t) return;
-            this.editor.innerText = t;
-            this.state.appData.documents[this.state.currentDocIndex].content = t;
-            this.autoPersist();
-            this.refresh();
-            this.toast("貼り付けました");
-          });
-        };
-
-        document.getElementById('toggle-markers-cb').onchange = (e)=>this.toggleVisibility(e.target.checked);
-      }
-
-      autoPersist(){
-        this.persistLocal();
-        clearTimeout(this.state.cloudTimer);
-        // Android/モバイルは頻繁保存しすぎると重くなるので少し遅め
-        this.state.cloudTimer = setTimeout(()=>this.saveCloud(false), 8000);
-      }
-
-      async saveCloud(manual=false){
-        if(!this.state.user || !this.state.syncId) return;
-        try{
-          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
-          await setDoc(docRef, { ...this.state.appData, lastUpdated: new Date().toISOString() });
-          if(manual) this.toast("クラウドへ保存しました");
-        }catch(e){
-          if(manual) this.toast("保存に失敗しました");
-        }
-      }
-
-      async loadCloud(manual=true){
-        if(!this.state.user || !this.state.syncId) return;
-        if(manual && !confirm("クラウドから受信しますか？（ローカル変更は上書きされます）")) return;
-        try{
-          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
-          const snap = await getDoc(docRef);
-          if(snap.exists()){
-            const data = snap.data();
-            if(data && data.documents){
-              this.state.appData = {
-                documents: data.documents.map((x,i)=>({ title: x.title || `文章 ${i+1}`, content: x.content || '' })),
-                rules: data.rules || ''
-              };
-              // 足りない分は補完
-              if(this.state.appData.documents.length < 20){
-                const cur = this.state.appData.documents;
-                this.state.appData.documents = Array.from({length:20}, (_,i)=>cur[i] || ({title:`文章 ${i+1}`, content:''}));
-              }
-              this.persistLocal();
-              this.refresh();
-              if(manual) this.toast("受信しました");
-              return;
+                onAuthStateChanged(auth, async (u) => {
+                    this.state.user = u;
+                    if (u) {
+                        // ロードされたIDがなければ匿名UIDを使用するが、保存IDがあればそれを維持
+                        if(!this.state.syncId) {
+                            this.state.syncId = u.uid;
+                        }
+                        this.updateIdBadge();
+                        if (localStorage.getItem('user_numeric_id')) {
+                            await this.loadCloud(false);
+                        }
+                        this.refresh();
+                    }
+                });
             }
-          }
-          if(manual) this.toast("クラウドにデータがありません");
-        }catch(e){
-          if(manual) this.toast("受信に失敗しました");
-        }
-      }
 
-      openSyncSetup(){
-        const m = document.getElementById('modal-overlay');
-        document.getElementById('rename-view').style.display = 'none';
-        document.getElementById('sync-view').style.display = 'block';
-        m.style.display = 'flex';
-
-        document.getElementById('sync-id-input').value = this.state.syncId || '';
-        document.getElementById('emergency-paste').value = '';
-
-        document.getElementById('modal-ok-btn').onclick = async ()=>{
-          const eText = document.getElementById('emergency-paste').value.trim();
-          if(eText){
-            this.state.appData.documents[this.state.currentDocIndex].content = eText;
-            this.toast("復旧しました");
-          }
-
-          const nid = document.getElementById('sync-id-input').value.trim();
-          if(nid.length > 5){
-            this.state.syncId = nid;
-            this.persistLocal();
-            // ここは事故りやすいので、勝手に受信せず、まずUI更新だけ
-            // 受信はユーザーが☁を押す運用が安全
-            this.toast("同期IDを更新しました");
-          }
-
-          this.refresh();
-          m.style.display = 'none';
-        };
-      }
-
-      openRename(){
-        const m = document.getElementById('modal-overlay');
-        document.getElementById('sync-view').style.display = 'none';
-        document.getElementById('rename-view').style.display = 'block';
-        m.style.display = 'flex';
-
-        const input = document.getElementById('rename-input');
-        input.value = this.state.appData.documents[this.state.currentDocIndex].title || '';
-
-        document.getElementById('modal-ok-btn').onclick = ()=>{
-          this.state.appData.documents[this.state.currentDocIndex].title = input.value || `文章 ${this.state.currentDocIndex+1}`;
-          this.updateMeta();
-          this.persistLocal();
-          m.style.display = 'none';
-        };
-      }
-
-      updateMeta(){
-        if(this.charCounter) this.charCounter.textContent = `${this.editor.innerText.length}文字`;
-        if(this.docSelect){
-          this.docSelect.innerHTML = this.state.appData.documents.map((d,i)=>`<option value="${i}">${this.escapeHtml(d.title)}</option>`).join('');
-          this.docSelect.value = this.state.currentDocIndex;
-        }
-      }
-
-      escapeHtml(s){
-        return String(s || '').replace(/[&<>"']/g, (c)=>({
-          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
-        })[c]);
-      }
-
-      // -------------------------
-      // Marker rules format:
-      // New:  docIndex::S<start>,L<len>-><text>%%C<color>
-      // Old:  docIndex::prefix[SEP]suffix->text%%Ccolor  (v5.2)
-      // -------------------------
-      parseRule(rule){
-        // return {docIndex, start, len, text, color, rawRule, kind}
-        if(!rule || !rule.includes('->') || !rule.includes('%%')) return null;
-        const [meta, body] = rule.split('->');
-        const docIndexStr = (meta || '').split('::')[0].trim();
-        const docIndex = parseInt(docIndexStr);
-        if(Number.isNaN(docIndex)) return null;
-
-        const [text, colorPart] = (body || '').split('%%');
-        const color = (colorPart && colorPart.startsWith('C')) ? colorPart.substring(1) : 'red';
-
-        const rest = (meta || '').split('::')[1] || '';
-
-        // New format: Sxx,Lyy
-        const m = rest.match(/S(\d+),L(\d+)/);
-        if(m){
-          return { docIndex, start: parseInt(m[1]), len: parseInt(m[2]), text: text || '', color, rawRule: rule, kind:'pos' };
-        }
-
-        // Old format: prefix[SEP]suffix (we will try to locate)
-        const pre = rest.split('[SEP]')[0] || '';
-        const suf = rest.includes('[SEP]') ? (rest.split('[SEP]')[1] || '') : '';
-        return { docIndex, pre, suf, text: text || '', color, rawRule: rule, kind:'ctx' };
-      }
-
-      // selection start in editor innerText index
-      getSelectionStartInEditor(range){
-        const r = document.createRange();
-        r.setStart(this.editor, 0);
-        r.setEnd(range.startContainer, range.startOffset);
-        return (r.toString() || '').length;
-      }
-
-      createMarker(colorId){
-        const sel = window.getSelection();
-        if(!sel.rangeCount || sel.isCollapsed) return;
-
-        const range = sel.getRangeAt(0);
-        const target = range.toString();
-        if(!target || !target.trim()) return;
-
-        // 位置ベースで保存（既存マーカーの近傍でも壊れない）
-        const start = this.getSelectionStartInEditor(range);
-        const len = target.length;
-
-        const rule = `${this.state.currentDocIndex}::S${start},L${len}->${target}%%C${colorId}`;
-        const rs = (this.state.appData.rules || '').split('\n').filter(Boolean);
-        rs.push(rule);
-        this.state.appData.rules = rs.join('\n');
-
-        this.state.appData.documents[this.state.currentDocIndex].content = this.editor.innerText;
-        this.refresh();
-        this.autoPersist();
-        sel.removeAllRanges();
-      }
-
-      // 旧ctxルールをposに変換（見つかる範囲だけ）
-      convertCtxToPosIfPossible(raw, parsed){
-        // parsed: {pre,suf,text}
-        const pre = parsed.pre || '';
-        const suf = parsed.suf || '';
-        const text = parsed.text || '';
-        if(!text) return null;
-
-        // 三点一致優先
-        let idx = -1;
-        const p3 = pre + text + suf;
-        if(p3.trim()) idx = raw.indexOf(p3);
-        if(idx >= 0) idx = idx + pre.length;
-        if(idx < 0){
-          const p2 = pre + text;
-          const j = raw.indexOf(p2);
-          if(j >= 0) idx = j + pre.length;
-        }
-        if(idx < 0){
-          // 最後の手段
-          idx = raw.indexOf(text);
-        }
-        if(idx < 0) return null;
-
-        return { start: idx, len: text.length };
-      }
-
-      refresh(){
-        const raw = this.state.appData.documents[this.state.currentDocIndex].content || '';
-        this.editor.innerHTML = '';
-
-        // ルール抽出（現ドキュメントのみ）
-        const all = (this.state.appData.rules || '').split('\n').filter(Boolean);
-        const parsedRules = all
-          .map(r=>this.parseRule(r))
-          .filter(x=>x && x.docIndex === this.state.currentDocIndex);
-
-        // ctxルールをposルールへ「できる範囲で」移行し、rulesを更新する
-        let rulesChanged = false;
-        const newRules = [];
-        for(const r of all){
-          const p = this.parseRule(r);
-          if(!p || p.docIndex !== this.state.currentDocIndex){ newRules.push(r); continue; }
-
-          if(p.kind === 'pos'){
-            newRules.push(r);
-            continue;
-          }
-
-          // ctx -> pos を試す
-          const conv = this.convertCtxToPosIfPossible(raw, p);
-          if(conv){
-            const upgraded = `${p.docIndex}::S${conv.start},L${conv.len}->${p.text}%%C${p.color}`;
-            newRules.push(upgraded);
-            rulesChanged = true;
-          }else{
-            // 見つからない場合は残す（ただし描画できない可能性はある）
-            newRules.push(r);
-          }
-        }
-        if(rulesChanged){
-          this.state.appData.rules = newRules.join('\n');
-          this.persistLocal();
-        }
-
-        // posルールを再取得（移行後）
-        const posRules = (this.state.appData.rules || '').split('\n').filter(Boolean)
-          .map(r=>this.parseRule(r))
-          .filter(x=>x && x.docIndex === this.state.currentDocIndex && x.kind === 'pos' && Number.isFinite(x.start) && Number.isFinite(x.len));
-
-        // 位置の昇順、重なり排除（先勝ち）
-        const marks = posRules
-          .map(m=>({
-            start: Math.max(0, m.start),
-            end: Math.min(raw.length, m.start + m.len),
-            color: m.color || 'red',
-            rule: m.rawRule,
-            text: raw.slice(Math.max(0, m.start), Math.min(raw.length, m.start + m.len))
-          }))
-          .filter(m=>m.end > m.start);
-
-        marks.sort((a,b)=>a.start - b.start);
-
-        const filtered = [];
-        let lastEnd = -1;
-        for(const m of marks){
-          if(m.start >= lastEnd){
-            filtered.push(m);
-            lastEnd = m.end;
-          }
-        }
-
-        // rawから一発で組み立て（DOM分割影響なし）
-        let pos = 0;
-        for(const m of filtered){
-          this.appendTextWithBR(raw.slice(pos, m.start));
-          const span = document.createElement('span');
-          span.className = 'marker';
-          span.dataset.rule = m.rule;
-          span.dataset.color = m.color;
-          span.dataset.start = String(m.start);
-          span.dataset.len = String(m.end - m.start);
-          span.textContent = m.text;
-          span.setAttribute('contenteditable', 'false'); // 編集崩壊防止
-          this.editor.appendChild(span);
-          pos = m.end;
-        }
-        this.appendTextWithBR(raw.slice(pos));
-
-        this.renderManager(filtered);
-        this.updateMeta();
-        this.toggleVisibility(document.getElementById('toggle-markers-cb').checked);
-      }
-
-      appendTextWithBR(text){
-        const lines = String(text || '').split('\n');
-        lines.forEach((t,i,a)=>{
-          if(t) this.editor.appendChild(document.createTextNode(t));
-          if(i < a.length - 1) this.editor.appendChild(document.createElement('br'));
-        });
-      }
-
-      renderManager(markers){
-        const list = document.getElementById('marker-manager-list');
-        if(!list) return;
-
-        if(!markers.length){
-          list.innerHTML = '<p style="text-align:center;color:#999;padding:10px;">なし</p>';
-          return;
-        }
-
-        list.innerHTML = '';
-        markers.forEach(m=>{
-          const code = this.colors.find(c=>c.id===m.color)?.code || '#ef4444';
-          const item = document.createElement('div');
-          item.className = 'manager-item';
-          item.innerHTML =
-            `<div style="width:20px;height:20px;background:${code};border-radius:3px"></div>
-             <div class="manager-item-text">${this.escapeHtml(m.text)}</div>
-             <button class="manager-item-delete">×</button>`;
-
-          item.querySelector('.manager-item-delete').onclick = (e)=>{
-            e.stopPropagation();
-            this.delRule(m.rule);
-          };
-
-          item.onclick = ()=>{
-            const el = Array.from(this.editor.querySelectorAll('.marker')).find(x=>x.dataset.rule === m.rule);
-            if(el){
-              el.scrollIntoView({behavior:'smooth', block:'center'});
-              el.classList.add('reveal');
+            performMigration() {
+                const keys = ['memorize_v5_stable', 'marker_v4_final'];
+                let masterData = this.state.appData;
+                for(const k of keys) {
+                    const s = localStorage.getItem(k);
+                    if(!s) continue;
+                    try {
+                        const d = JSON.parse(s);
+                        if(d && d.documents) {
+                            if(JSON.stringify(d).length > JSON.stringify(masterData).length) masterData = d;
+                        }
+                    } catch(e) {}
+                }
+                this.state.appData = masterData;
+                this.persistLocal();
             }
-          };
-          list.appendChild(item);
-        });
-      }
 
-      delRule(rule){
-        const rs = (this.state.appData.rules || '').split('\n').filter(Boolean);
-        const idx = rs.indexOf(rule);
-        if(idx > -1){
-          rs.splice(idx, 1);
-          this.state.appData.rules = rs.join('\n');
-          this.persistLocal();
-          this.refresh();
-        }
-      }
-
-      handleEditorClick(e){
-        const m = e.target.closest('.marker');
-        if(!m) return;
-
-        const now = Date.now();
-        if(now - this.state.lastTapTime < 350 && this.state.lastTapTarget === m){
-          if(confirm("削除しますか？")) this.delRule(m.dataset.rule);
-          this.state.lastTapTime = 0;
-          this.state.lastTapTarget = null;
-          return;
-        }
-        m.classList.toggle('reveal');
-        this.state.lastTapTime = now;
-        this.state.lastTapTarget = m;
-      }
-
-      toggleVisibility(hide){
-        this.editor.querySelectorAll('.marker').forEach(m=>{
-          if(hide) m.classList.remove('reveal');
-          else m.classList.add('reveal');
-        });
-      }
-
-      // -------------------------
-      // Android TTS 안정化
-      // -------------------------
-      warmupVoices(){
-        try{
-          const synth = window.speechSynthesis;
-          if(!synth) return;
-
-          const load = ()=>{
-            const vs = synth.getVoices ? synth.getVoices() : [];
-            if(vs && vs.length) this.state.voicesReady = true;
-          };
-
-          load();
-          synth.onvoiceschanged = ()=>load();
-
-          // 追加で数回起動（Androidで遅れるケース用）
-          let tries = 0;
-          const t = setInterval(()=>{
-            tries++;
-            load();
-            if(this.state.voicesReady || tries > 10) clearInterval(t);
-          }, 300);
-        }catch(e){}
-      }
-
-      pickJapaneseVoice(){
-        const synth = window.speechSynthesis;
-        const vs = synth.getVoices ? synth.getVoices() : [];
-        // 優先：Google / Japanese
-        const ja = vs.find(v => (v.lang||'').toLowerCase().startsWith('ja') && /google/i.test(v.name || ''))
-               || vs.find(v => (v.lang||'').toLowerCase().startsWith('ja'));
-        return ja || null;
-      }
-
-      toggleSpeech(){
-        const synth = window.speechSynthesis;
-        if(!synth){
-          alert("この環境では音声読み上げが利用できません。Chromeで開いて試してください。");
-          return;
-        }
-
-        if(this.state.isSpeaking){
-          synth.cancel();
-          this.state.isSpeaking = false;
-          this.speechBtn.textContent = "▶ 読上";
-          return;
-        }
-
-        const sel = window.getSelection();
-        const text = (!sel.isCollapsed) ? sel.toString() : this.editor.innerText;
-        if(!text || !text.trim()) return;
-
-        // 重要：cancel直後のspeakが死ぬことがあるので、短い遅延を入れる
-        synth.cancel();
-
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = 'ja-JP';
-        u.rate = parseFloat(document.getElementById('speech-rate-select').value);
-
-        // voice明示（無音対策）
-        const v = this.pickJapaneseVoice();
-        if(v) u.voice = v;
-
-        u.onstart = ()=>{
-          this.state.isSpeaking = true;
-          this.speechBtn.textContent = "⏹ 停止";
-        };
-        u.onend = ()=>{
-          this.state.isSpeaking = false;
-          this.speechBtn.textContent = "▶ 読上";
-        };
-        u.onerror = ()=>{
-          this.state.isSpeaking = false;
-          this.speechBtn.textContent = "▶ 読上";
-          alert("読上げに失敗しました。\n・Chromeで開いているか\n・AndroidのTTS設定が有効か\nを確認してください。");
-        };
-
-        setTimeout(()=>{
-          try{ synth.resume(); }catch(e){}
-          synth.speak(u);
-
-          // Androidで「開始しない」ケースの保険：少し待っても開始してないなら案内
-          setTimeout(()=>{
-            // speakingは環境により信用し切れないが、無音の手掛かりにはなる
-            if(!synth.speaking && !this.state.isSpeaking){
-              this.toast("音声が出ない場合はChromeで開いてください（WebViewでは制限が出ることがあります）", 4000);
+            updateIdBadge() {
+                if(this.saveStatus) {
+                    this.saveStatus.textContent = this.state.syncId ? `ID: ${this.state.syncId}` : "ID未設定";
+                }
             }
-          }, 900);
-        }, 90);
-      }
-    }
 
-    window.onload = ()=>{
-      new MarkerToolV5_3_0();
-      document.getElementById('modal-cancel-btn').onclick = ()=>document.getElementById('modal-overlay').style.display = 'none';
-    };
-  </script>
+            renderPalette() {
+                const p = document.getElementById('marker-palette');
+                if(!p) return;
+                p.innerHTML = '';
+                this.colors.forEach(c => {
+                    const btn = document.createElement('div');
+                    btn.className = 'palette-btn';
+                    btn.style.backgroundColor = c.code;
+                    btn.onmousedown = (e) => { e.preventDefault(); this.createMarker(c.id); };
+                    btn.ontouchstart = (e) => { e.preventDefault(); this.createMarker(c.id); };
+                    p.appendChild(btn);
+                });
+            }
+
+            bindEvents() {
+                this.editor.oninput = () => {
+                    this.state.appData.documents[this.state.currentDocIndex].content = this.editor.innerText;
+                    this.autoPersist();
+                };
+                this.editor.onclick = (e) => {
+                    const m = e.target.closest('.marker');
+                    if (m) {
+                        const now = Date.now();
+                        if (now - this.lastTapTime < 350 && this.lastTapTarget === m) {
+                            if(confirm("削除しますか？")) this.delRule(m.dataset.rule);
+                            this.lastTapTime = 0; this.lastTapTarget = null;
+                        } else {
+                            m.classList.toggle('reveal');
+                            this.lastTapTime = now; this.lastTapTarget = m;
+                        }
+                    }
+                };
+                this.docSelect.onchange = (e) => {
+                    this.state.appData.documents[this.state.currentDocIndex].content = this.editor.innerText;
+                    this.state.currentDocIndex = parseInt(e.target.value);
+                    this.state.lastSpeechIndex = 0; 
+                    this.refresh();
+                };
+                document.getElementById('rename-doc-btn').onclick = () => this.openRename();
+                document.getElementById('cloud-load-btn').onclick = () => this.loadCloud(true);
+                document.getElementById('manual-save-btn').onclick = () => this.saveCloud(true);
+                document.getElementById('sync-setup-btn').onclick = () => this.openSyncSetup();
+                document.getElementById('manager-header').onclick = () => document.getElementById('manager-panel').classList.toggle('closed');
+                this.speechBtn.onclick = () => this.toggleSpeech();
+                document.getElementById('copy-btn').onclick = () => { 
+                    navigator.clipboard.writeText(this.editor.innerText);
+                    this.showStatus("本文をコピーしました");
+                };
+                document.getElementById('toggle-markers-cb').onchange = (e) => this.toggleVisibility(e.target.checked);
+            }
+
+            createMarker(colorId) {
+                const sel = window.getSelection();
+                if (!sel.rangeCount || sel.isCollapsed) return;
+                const range = sel.getRangeAt(0);
+                const target = range.toString().trim();
+                if (!target) return;
+                const getCtx = (isPre) => {
+                    const r = document.createRange();
+                    if(isPre) { r.setStart(this.editor, 0); r.setEnd(range.startContainer, range.startOffset); }
+                    else { r.setStart(range.endContainer, range.endOffset); r.setEnd(this.editor, this.editor.childNodes.length); }
+                    const txt = r.cloneContents().textContent || "";
+                    return isPre ? [...txt].slice(-4).join('') : [...txt].slice(0, 4).join('');
+                };
+                const rule = `${this.state.currentDocIndex}::${getCtx(true)}[SEP]${getCtx(false)}->${target}%%C${colorId}`;
+                const rs = (this.state.appData.rules || '').split('\n').filter(Boolean);
+                rs.push(rule);
+                this.state.appData.rules = rs.join('\n');
+                this.refresh();
+                this.persistLocal();
+                sel.removeAllRanges();
+            }
+
+            refresh() {
+                const raw = this.state.appData.documents[this.state.currentDocIndex].content || '';
+                this.editor.innerHTML = '';
+                let nodes = [{ text: raw, type: 'text' }];
+                const rules = (this.state.appData.rules || '').split('\n').filter(r => r.trim() && r.startsWith(this.state.currentDocIndex + '::'));
+                rules.forEach(rule => {
+                    if (!rule.includes('->') || !rule.includes('%%')) return;
+                    const parts = rule.split('->');
+                    const [target, colorPart] = parts[1].split('%%');
+                    const colorId = colorPart.startsWith('C') ? colorPart.substring(1) : 'red';
+                    const metaSec = parts[0].split('::')[1];
+                    if(!metaSec) return;
+                    const pre = metaSec.split('[SEP]')[0] || "";
+                    const pattern = pre + target;
+                    for (let i = 0; i < nodes.length; i++) {
+                        if (nodes[i].type === 'text') {
+                            const idx = nodes[i].text.indexOf(pattern);
+                            if (idx > -1) {
+                                const start = idx + pre.length;
+                                nodes.splice(i, 1, 
+                                    { text: nodes[i].text.substring(0, start), type: 'text' },
+                                    { text: target, type: 'marker', color: colorId, rule: rule },
+                                    { text: nodes[i].text.substring(start + target.length), type: 'text' }
+                                );
+                                break;
+                            }
+                        }
+                    }
+                });
+                nodes.forEach(n => {
+                    if (n.type === 'text') {
+                        n.text.split('\n').forEach((t, i, a) => {
+                            if(t) this.editor.appendChild(document.createTextNode(t));
+                            if(i < a.length - 1) this.editor.appendChild(document.createElement('br'));
+                        });
+                    } else {
+                        const span = document.createElement('span');
+                        span.className = 'marker';
+                        span.dataset.text = n.text; span.dataset.rule = n.rule; span.dataset.color = n.color;
+                        span.textContent = n.text; this.editor.appendChild(span);
+                    }
+                });
+                this.renderManager(rules);
+                this.updateMeta();
+                this.toggleVisibility(document.getElementById('toggle-markers-cb').checked);
+            }
+
+            renderManager(rules) {
+                const list = document.getElementById('marker-manager-list');
+                if(!list) return;
+                list.innerHTML = rules.length ? '' : '<p style="text-align:center;color:#94a3b8;padding:10px;">なし</p>';
+                rules.forEach(r => {
+                    if(!r.includes('->')) return;
+                    const parts = r.split('->')[1].split('%%');
+                    const code = this.colors.find(c => 'C'+c.id === parts[1] || c.id === parts[1])?.code || '#ef4444';
+                    const item = document.createElement('div');
+                    item.className = 'manager-item';
+                    item.innerHTML = `<div style="width:20px;height:20px;background:${code};border-radius:3px"></div><div class="manager-item-text">${parts[0]}</div><button class="manager-item-delete">×</button>`;
+                    item.querySelector('.manager-item-delete').onclick = (e) => { e.stopPropagation(); this.delRule(r); };
+                    item.onclick = () => {
+                        const el = Array.from(this.editor.querySelectorAll('.marker')).find(m => m.dataset.rule === r);
+                        if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('reveal'); }
+                    };
+                    list.appendChild(item);
+                });
+            }
+
+            autoPersist() {
+                this.persistLocal();
+                clearTimeout(this.cloudTimer);
+                this.cloudTimer = setTimeout(() => this.saveCloud(false), 8000);
+            }
+
+            persistLocal() {
+                localStorage.setItem('memorize_v5_stable', JSON.stringify(this.state.appData));
+            }
+
+            async saveCloud(manual = false) {
+                if (!this.state.syncId || !this.state.user) { if(manual) this.showStatus("IDを設定してください"); return; }
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
+                    await setDoc(docRef, { ...this.state.appData, lastUpdated: new Date().toISOString() });
+                    this.showStatus("クラウドへ保存しました");
+                } catch(e) { this.showStatus("保存失敗"); }
+            }
+
+            async loadCloud(manual = true) {
+                if (!this.state.syncId || !this.state.user) return;
+                try {
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
+                    const snap = await getDoc(docRef);
+                    if (snap.exists()) { 
+                        const data = snap.data();
+                        if(data && data.documents && data.documents.some(d => (d.content || "").length > 0)) {
+                            this.state.appData = data; 
+                            this.refresh();
+                            this.showStatus("同期完了");
+                        }
+                    } else if(manual) this.showStatus("データなし");
+                } catch(e) { this.showStatus("読込失敗"); }
+            }
+
+            showStatus(msg) {
+                if(this.saveStatus) {
+                    const currentId = this.state.syncId || "未設定";
+                    this.saveStatus.textContent = msg;
+                    setTimeout(() => { this.saveStatus.textContent = `ID: ${currentId}`; }, 3000);
+                }
+            }
+
+            openSyncSetup() {
+                const m = document.getElementById('modal-overlay');
+                const view = document.getElementById('sync-view');
+                const rview = document.getElementById('rename-view');
+                if(!m || !view || !rview) return;
+                rview.style.display = 'none';
+                view.style.display = 'block';
+                m.style.display = 'flex';
+                document.getElementById('sync-id-input').value = this.state.syncId || "";
+                document.getElementById('modal-ok-btn').onclick = async () => {
+                    const nid = document.getElementById('sync-id-input').value.trim();
+                    if(nid.length > 0) { 
+                        // ★IDを即座に永続保存
+                        this.state.syncId = nid; 
+                        localStorage.setItem('user_numeric_id', nid);
+                        this.updateIdBadge(); 
+                        if (this.state.user) await this.loadCloud(false); 
+                        this.refresh();
+                    }
+                    m.style.display = 'none';
+                };
+            }
+
+            openRename() {
+                const m = document.getElementById('modal-overlay');
+                const view = document.getElementById('sync-view');
+                const rview = document.getElementById('rename-view');
+                if(!m || !view || !rview) return;
+                view.style.display = 'none';
+                rview.style.display = 'block';
+                m.style.display = 'flex';
+                const input = document.getElementById('rename-input');
+                input.value = this.state.appData.documents[this.state.currentDocIndex].title;
+                document.getElementById('modal-ok-btn').onclick = () => {
+                    this.state.appData.documents[this.state.currentDocIndex].title = input.value;
+                    this.updateMeta(); this.persistLocal(); m.style.display = 'none';
+                };
+            }
+
+            updateMeta() {
+                if(this.charCounter) this.charCounter.textContent = `${this.editor.innerText.length}文字`;
+                if(this.docSelect) {
+                    this.docSelect.innerHTML = this.state.appData.documents.map((d,i) => `<option value="${i}">${d.title}</option>`).join('');
+                    this.docSelect.value = this.state.currentDocIndex;
+                }
+            }
+
+            delRule(r) {
+                const rs = (this.state.appData.rules || '').split('\n');
+                const idx = rs.indexOf(r);
+                if (idx > -1) { rs.splice(idx, 1); this.state.appData.rules = rs.join('\n'); this.refresh(); this.persistLocal(); }
+            }
+
+            toggleVisibility(hide) {
+                this.editor.querySelectorAll('.marker').forEach(m => {
+                    if (hide) m.classList.remove('reveal'); else m.classList.add('reveal');
+                });
+            }
+
+            toggleSpeech() {
+                if (this.state.isSpeaking) {
+                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+                    window.speechSynthesis.cancel();
+                    this.state.isSpeaking = false;
+                    this.speechBtn.textContent = "▶ 続きから";
+                    return;
+                }
+                const currentFullText = this.editor.innerText;
+                if (!currentFullText.trim()) return;
+                if (this.state.fullTextForSpeech !== currentFullText) {
+                    this.state.lastSpeechIndex = 0;
+                    this.state.fullTextForSpeech = currentFullText;
+                }
+                const textToSpeak = currentFullText.substring(this.state.lastSpeechIndex);
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.resume(); 
+                const u = new SpeechSynthesisUtterance(textToSpeak);
+                u.lang = 'ja-JP';
+                u.rate = parseFloat(document.getElementById('speech-rate-select').value) || 1.0;
+                u.onboundary = (event) => {
+                    this.state.lastSpeechIndex = (currentFullText.length - textToSpeak.length) + event.charIndex;
+                };
+                u.onend = () => {
+                    this.state.isSpeaking = false;
+                    this.speechBtn.textContent = "▶ 読上";
+                    this.state.lastSpeechIndex = 0;
+                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+                };
+                u.onerror = () => {
+                    this.state.isSpeaking = false;
+                    this.speechBtn.textContent = "▶ 読上";
+                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+                };
+                window.speechSynthesis.speak(u);
+                this.state.isSpeaking = true;
+                this.speechBtn.textContent = "⏹ 中断";
+                if (this.resumeTimer) clearInterval(this.resumeTimer);
+                this.resumeTimer = setInterval(() => {
+                    if (!this.state.isSpeaking) { clearInterval(this.resumeTimer); return; }
+                    if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
+                }, 10000); 
+            }
+        }
+        window.onload = () => { 
+            const tool = new MarkerToolV5();
+            tool.init();
+            document.getElementById('modal-cancel-btn').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
+        };
+    </script>
 </body>
 </html>
+
