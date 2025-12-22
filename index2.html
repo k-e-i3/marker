@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
-    <title>暗記ツール v5.7.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>暗記ツール v5.7.1</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -23,38 +23,43 @@
             background-color: var(--header-bg); color: var(--header-text);
             padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 54px;
         }
-        .doc-controls { display: flex; flex-grow: 1; gap: 8px; align-items: center; }
+        .doc-controls { display: flex; flex-grow: 1; gap: 6px; align-items: center; overflow: hidden; }
         select#doc-select {
-            flex-grow: 1; height: 38px; font-size: 16px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white;
+            flex-grow: 1; height: 38px; font-size: 16px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; min-width: 80px;
         }
         button.icon-btn {
-            height: 38px; width: 44px; display: flex; justify-content: center; align-items: center;
+            height: 38px; width: 42px; display: flex; justify-content: center; align-items: center;
             background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.1); 
-            border-radius: 6px; color: white; font-size: 20px; cursor: pointer; flex-shrink: 0;
+            border-radius: 6px; color: white; font-size: 18px; cursor: pointer; flex-shrink: 0;
         }
-        .meta-info { text-align: right; line-height: 1.2; margin-left: auto; display: flex; flex-direction: column; justify-content: center; }
-        #char-counter { font-size: 10px; color: #ffffff; font-weight: bold; }
-        #save-status { font-size: 9px; color: #94a3b8; }
+        .meta-info { text-align: right; line-height: 1.2; margin-left: auto; display: flex; flex-direction: column; justify-content: center; min-width: 60px; }
+        #char-counter { font-size: 10px; color: #ffffff; font-weight: bold; white-space: nowrap; }
+        #save-status { font-size: 8px; color: #94a3b8; white-space: nowrap; }
         
         #toolbar-container {
             background-color: var(--toolbar-bg); padding: 8px; border-bottom: 1px solid var(--border-color);
             display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
         }
-        .action-row { display: flex; align-items: center; gap: 10px; overflow-x: auto; }
+        .action-row { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
         .action-btn {
             background: #fff; border: 1px solid #cbd5e0; color: #334155;
-            font-size: 14px; padding: 0 14px; border-radius: 6px; cursor: pointer; height: 36px; white-space: nowrap;
-            transition: all 0.2s;
+            font-size: 13px; padding: 0 12px; border-radius: 6px; cursor: pointer; height: 36px; white-space: nowrap;
+            transition: all 0.2s; flex-shrink: 0;
         }
-        .action-btn:active { background: #e2e8f0; }
+        .marker-scroll-row { 
+            display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; 
+            scrollbar-width: none; -webkit-overflow-scrolling: touch;
+            flex-wrap: nowrap; /* モバイルではスクロールさせる */
+        }
         .palette-btn {
             width: 44px; height: 42px; flex-shrink: 0; border-radius: 8px; cursor: pointer; 
             border: 2px solid rgba(0,0,0,0.15); box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
         main { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; position: relative; background: var(--main-bg); }
         #main-text-area {
-            flex-grow: 1; padding: 24px; font-size: 19px; line-height: 1.9;
+            flex-grow: 1; padding: 20px; font-size: 18px; line-height: 1.8;
             white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
+            -webkit-user-modify: read-write-plaintext-only;
         }
         #main-text-area:empty::before { content: "文章を入力してください..."; color: #94a3b8; }
         
@@ -73,7 +78,7 @@
         .manager-item-delete { border: 1px solid #fca5a5; background: #fee2e2; color: #dc2626; width: 40px; height: 38px; border-radius: 6px; font-size: 20px; }
         
         .marker { 
-            cursor: pointer; border-radius: 2px; user-select: none; transition: all 0.2s; padding: 0 2px; margin: 0 1px;
+            cursor: pointer; border-radius: 2px; user-select: none; transition: all 0.2s; padding: 0 1px; margin: 0 1px;
             display: inline-block; line-height: 1.2; border-bottom: 2px solid rgba(0,0,0,0.1);
         }
         .marker[data-color="red"] { background-color: #ef4444; color: #ef4444; }
@@ -86,9 +91,9 @@
 
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.6); z-index: 1000; display: none; justify-content: center; align-items: center;
+            background-color: rgba(0,0,0,0.7); z-index: 9999; display: none; justify-content: center; align-items: center;
         }
-        .modal-content { background: #fff; width: 92%; max-width: 500px; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); }
+        .modal-content { background: #fff; width: 92%; max-width: 480px; border-radius: 12px; padding: 24px; display: flex; flex-direction: column; gap: 16px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
     </style>
 </head>
 <body>
@@ -123,7 +128,7 @@
                     <input type="checkbox" id="toggle-markers-cb" checked> 隠す
                 </label>
             </div>
-            <div class="marker-scroll-row" id="marker-palette" style="display:flex; gap:10px; overflow-x:auto;"></div>
+            <div class="marker-scroll-row" id="marker-palette"></div>
         </div>
 
         <main>
@@ -140,18 +145,18 @@
 
     <div id="modal-overlay">
         <div class="modal-content">
-            <h3 id="modal-title" style="margin:0; color: #1e293b;">同期設定</h3>
+            <h3 id="modal-title" style="margin:0; color: #1e293b;">同期ID設定</h3>
             <div id="sync-view">
                 <p style="font-size:13px; color:#475569;">同期用IDを入力（例: 513042042）:</p>
-                <input type="text" id="sync-id-input" placeholder="ここに入力して決定" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; margin-bottom:12px; padding:0 12px; font-weight:bold; font-size:18px;">
-                <p style="font-size:11px; color:#64748b;">※設定したIDは保存され、次回起動時も自動的に使用されます。</p>
+                <input type="text" id="sync-id-input" placeholder="番号を入力" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; margin-bottom:12px; padding:0 12px; font-weight:bold; font-size:20px; -webkit-appearance: none;">
+                <p style="font-size:11px; color:#64748b;">※別の端末でも同じ数字を入力すれば共通の文章を同期できます。</p>
             </div>
             <div id="rename-view" style="display:none;">
                 <input type="text" id="rename-input" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; padding:0 12px;">
             </div>
             <div style="display:flex; justify-content:flex-end; gap:12px;">
-                <button class="action-btn" id="modal-ok-btn" style="background:#2563eb; color:white; border:none; width:80px;">決定</button>
-                <button class="action-btn" id="modal-cancel-btn" style="width:80px;">閉じる</button>
+                <button class="action-btn" id="modal-ok-btn" style="background:#2563eb; color:white; border:none; min-width:80px;">決定</button>
+                <button class="action-btn" id="modal-cancel-btn" style="min-width:80px;">閉じる</button>
             </div>
         </div>
     </div>
@@ -207,7 +212,7 @@
                         } else {
                             await signInAnonymously(auth);
                         }
-                    } catch (e) { console.error("Auth Error", e); }
+                    } catch (e) { console.error("Auth failed", e); }
                 };
                 await initAuth();
 
@@ -253,18 +258,21 @@
                     const btn = document.createElement('div');
                     btn.className = 'palette-btn';
                     btn.style.backgroundColor = c.code;
-                    btn.onmousedown = (e) => { e.preventDefault(); this.createMarker(c.id); };
-                    btn.ontouchstart = (e) => { e.preventDefault(); this.createMarker(c.id); };
+                    // pointerdownでモバイル・iPad双方に対応
+                    btn.addEventListener('pointerdown', (e) => {
+                        e.preventDefault();
+                        this.createMarker(c.id);
+                    });
                     p.appendChild(btn);
                 });
             }
 
             bindEvents() {
-                this.editor.oninput = () => {
+                this.editor.addEventListener('input', () => {
                     this.state.appData.documents[this.state.currentDocIndex].content = this.editor.innerText;
                     this.autoPersist();
-                };
-                this.editor.onclick = (e) => {
+                });
+                this.editor.addEventListener('click', (e) => {
                     const m = e.target.closest('.marker');
                     if (m) {
                         const now = Date.now();
@@ -276,37 +284,40 @@
                             this.lastTapTime = now; this.lastTapTarget = m;
                         }
                     }
-                };
-                this.docSelect.onchange = (e) => {
+                });
+                this.docSelect.addEventListener('change', (e) => {
                     this.state.appData.documents[this.state.currentDocIndex].content = this.editor.innerText;
                     this.state.currentDocIndex = parseInt(e.target.value);
                     this.state.lastSpeechIndex = 0; 
                     this.refresh();
-                };
-                document.getElementById('rename-doc-btn').onclick = () => this.openRename();
-                document.getElementById('cloud-load-btn').onclick = () => this.loadCloud(true);
-                document.getElementById('manual-save-btn').onclick = () => this.saveCloud(true);
-                document.getElementById('sync-setup-btn').onclick = () => this.openSyncSetup();
-                document.getElementById('manager-header').onclick = () => {
+                });
+                document.getElementById('rename-doc-btn').addEventListener('click', () => this.openRename());
+                document.getElementById('cloud-load-btn').addEventListener('click', () => this.loadCloud(true));
+                document.getElementById('manual-save-btn').addEventListener('click', () => this.saveCloud(true));
+                document.getElementById('sync-setup-btn').addEventListener('click', () => this.openSyncSetup());
+                document.getElementById('manager-header').addEventListener('click', () => {
                     const panel = document.getElementById('manager-panel');
                     const isClosed = panel.classList.toggle('closed');
                     document.getElementById('manager-header').setAttribute('aria-expanded', !isClosed);
-                };
-                this.speechBtn.onclick = () => this.toggleSpeech();
-                document.getElementById('copy-btn').onclick = () => { 
+                });
+                this.speechBtn.addEventListener('click', () => this.toggleSpeech());
+                document.getElementById('copy-btn').addEventListener('click', () => { 
                     navigator.clipboard.writeText(this.editor.innerText);
                     this.showStatus("本文をコピーしました");
-                };
-                document.getElementById('toggle-markers-cb').onchange = (e) => this.toggleVisibility(e.target.checked);
-                document.getElementById('modal-cancel-btn').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
+                });
+                document.getElementById('toggle-markers-cb').addEventListener('change', (e) => this.toggleVisibility(e.target.checked));
+                document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+                    document.getElementById('modal-overlay').style.display = 'none';
+                });
             }
 
             createMarker(colorId) {
                 const sel = window.getSelection();
-                if (!sel.rangeCount || sel.isCollapsed) return;
+                if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
                 const range = sel.getRangeAt(0);
                 const target = range.toString().trim();
                 if (!target) return;
+
                 const getCtx = (isPre) => {
                     const r = document.createRange();
                     if(isPre) { r.setStart(this.editor, 0); r.setEnd(range.startContainer, range.startOffset); }
@@ -314,6 +325,7 @@
                     const txt = r.cloneContents().textContent || "";
                     return isPre ? [...txt].slice(-4).join('') : [...txt].slice(0, 4).join('');
                 };
+
                 const rule = `${this.state.currentDocIndex}::${getCtx(true)}[SEP]${getCtx(false)}->${target}%%C${colorId}`;
                 const rs = (this.state.appData.rules || '').split('\n').filter(Boolean);
                 rs.push(rule);
@@ -360,7 +372,6 @@
                         const span = document.createElement('span');
                         span.className = 'marker';
                         span.setAttribute('role', 'button');
-                        span.setAttribute('aria-label', `隠された文字: ${n.text}`);
                         span.dataset.text = n.text; span.dataset.rule = n.rule; span.dataset.color = n.color;
                         span.textContent = n.text; this.editor.appendChild(span);
                     }
@@ -375,16 +386,17 @@
                 if(!list) return;
                 list.innerHTML = rules.length ? '' : '<p style="text-align:center;color:#94a3b8;padding:10px;">なし</p>';
                 rules.forEach(r => {
+                    if(!r.includes('->')) return;
                     const parts = r.split('->')[1].split('%%');
                     const code = this.colors.find(c => 'C'+c.id === parts[1] || c.id === parts[1])?.code || '#ef4444';
                     const item = document.createElement('div');
                     item.className = 'manager-item';
                     item.innerHTML = `<div style="width:20px;height:20px;background:${code};border-radius:3px"></div><div class="manager-item-text">${parts[0]}</div><button class="manager-item-delete">×</button>`;
-                    item.querySelector('.manager-item-delete').onclick = (e) => { e.stopPropagation(); this.delRule(r); };
-                    item.onclick = () => {
+                    item.querySelector('.manager-item-delete').addEventListener('click', (e) => { e.stopPropagation(); this.delRule(r); });
+                    item.addEventListener('click', () => {
                         const el = Array.from(this.editor.querySelectorAll('.marker')).find(m => m.dataset.rule === r);
                         if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('reveal'); }
-                    };
+                    });
                     list.appendChild(item);
                 });
             }
@@ -435,7 +447,6 @@
                 const m = document.getElementById('modal-overlay');
                 const view = document.getElementById('sync-view');
                 const rview = document.getElementById('rename-view');
-                if(!m || !view || !rview) return;
                 rview.style.display = 'none';
                 view.style.display = 'block';
                 m.style.display = 'flex';
@@ -457,7 +468,6 @@
                 const m = document.getElementById('modal-overlay');
                 const view = document.getElementById('sync-view');
                 const rview = document.getElementById('rename-view');
-                if(!m || !view || !rview) return;
                 view.style.display = 'none';
                 rview.style.display = 'block';
                 m.style.display = 'flex';
@@ -543,4 +553,3 @@
     </script>
 </body>
 </html>
-
