@@ -3,123 +3,189 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v6.0.4 (Drive Sync)</title>
+    <title>虫食 v7.1.4</title>
     <style>
         :root {
-            --bg-color: #f8fafc; --main-bg: #ffffff;
-            --text-color: #1e293b; --border-color: #cbd5e0;
-            --header-bg: #0f172a; --header-text: #ffffff;
-            --button-bg: #334155; --button-hover-bg: #1e293b;
-            --highlight-bg: #fffde7; --toolbar-bg: #f1f5f9;
-            --accent-blue: #2563eb; --accent-green: #059669;
+            /* ヘッダー：明るめのスレートグレー (#e2e8f0) に変更 */
+            --header-bg: #e2e8f0;
+            --header-text: #1e293b; /* 背景が明るいため文字は濃く */
+            
+            /* ベース */
+            --bg-base: #f1f5f9;       /* 背景：さらに淡いグレー */
+            --paper: #ffffff;         /* エディタ：白 */
+            --ink: #1e293b;           /* 文字：濃いスレート */
+            --border: #cbd5e1;        /* 境界線 */
+            
+            /* ボタン類 */
+            --btn-bg: #f8fafc;
+            --btn-text: #475569;
+            --btn-hover: #e2e8f0;
+            
+            /* アクセント */
+            --accent: #0f766e;
+            --highlight: #fef08a;
+
+            /* マーカー：ソフト・ビビッド */
+            --m-red: #f87171; --m-orange: #fb923c; --m-yellow: #facc15;
+            --m-green: #4ade80; --m-blue: #60a5fa; --m-purple: #c084fc;
+            
+            /* 隠蔽時の設定 */
+            --marker-hidden-bg: #334155;
+            --marker-hidden-text: #334155;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            margin: 0; background-color: var(--bg-color); color: var(--text-color);
+            font-family: "Optima", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0; background-color: var(--bg-base); color: var(--ink);
             overflow: hidden; height: 100vh; width: 100vw;
         }
-        #app-root { position: fixed; top: 0; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column; }
+        #app-root { display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Header */
         header {
-            background-color: var(--header-bg); color: var(--header-text);
-            padding: 8px 12px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; min-height: 54px;
+            background-color: var(--header-bg); border-bottom: 1px solid var(--border);
+            padding: 0 16px; height: 56px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10;
+            color: var(--header-text);
         }
-        .doc-controls { display: flex; flex-grow: 1; gap: 6px; align-items: center; overflow: hidden; }
+        .controls-group { display: flex; align-items: center; gap: 10px; flex-grow: 1; min-width: 0; }
+        
         select#doc-select {
-            flex-grow: 1; height: 38px; font-size: 16px; border-radius: 6px; border: 1px solid #475569; background: #334155; color: white; min-width: 80px;
+            flex-grow: 1; height: 36px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 14px; padding: 0 10px; 
+            background: var(--paper); /* 白背景で見やすく */
+            color: var(--ink); font-weight: 600; cursor: pointer;
         }
-        button.icon-btn {
-            height: 38px; width: 42px; display: flex; justify-content: center; align-items: center;
-            background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.1); 
-            border-radius: 6px; color: white; font-size: 18px; cursor: pointer; flex-shrink: 0;
-        }
-        button.icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
-        .meta-info { text-align: right; line-height: 1.2; margin-left: auto; display: flex; flex-direction: column; justify-content: center; min-width: 80px; }
-        #char-counter { font-size: 10px; color: #ffffff; font-weight: bold; white-space: nowrap; }
-        #sync-status { font-size: 8px; color: #94a3b8; white-space: nowrap; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
-        
-        #toolbar-container {
-            background-color: var(--toolbar-bg); padding: 8px; border-bottom: 1px solid var(--border-color);
-            display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;
-        }
-        .action-row { display: flex; align-items: center; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-        .action-btn {
-            background: #fff; border: 1px solid #cbd5e0; color: #334155;
-            font-size: 13px; padding: 0 12px; border-radius: 6px; cursor: pointer; height: 36px; white-space: nowrap;
-            transition: all 0.2s; flex-shrink: 0;
-        }
-        .marker-scroll-row { 
-            display: flex; gap: 10px; overflow-x: auto; padding: 4px 0; 
-            scrollbar-width: none; -webkit-overflow-scrolling: touch;
-        }
-        .palette-btn {
-            width: 44px; height: 42px; flex-shrink: 0; border-radius: 8px; cursor: pointer; 
-            border: 2px solid rgba(0,0,0,0.15); box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        main { display: flex; flex-direction: column; flex-grow: 1; overflow: hidden; position: relative; background: var(--main-bg); }
-        #main-text-area {
-            flex-grow: 1; padding: 20px; font-size: 18px; line-height: 1.8;
-            white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
-            -webkit-user-modify: read-write-plaintext-only;
-        }
-        #main-text-area:empty::before { content: "初期化中..."; color: #94a3b8; }
-        
-        .marker { 
-            cursor: pointer; border-radius: 2px; user-select: none; transition: all 0.2s; padding: 0 2px; margin: 0 1px;
-            display: inline-block; line-height: 1.2; border-bottom: 2px solid rgba(0,0,0,0.1);
-        }
-        .marker[data-color="red"] { background-color: #ef4444; color: #ef4444; }
-        .marker[data-color="orange"] { background-color: #f97316; color: #f97316; }
-        .marker[data-color="yellow"] { background-color: #eab308; color: #eab308; }
-        .marker[data-color="green"] { background-color: #22c55e; color: #22c55e; }
-        .marker[data-color="blue"] { background-color: #3b82f6; color: #3b82f6; }
-        .marker[data-color="purple"] { background-color: #a855f7; color: #a855f7; }
-        .marker.reveal { background-color: var(--highlight-bg) !important; color: var(--text-color) !important; border-bottom: 2px solid transparent; }
+        select#doc-select option { background: white; color: black; }
 
+        .icon-btn {
+            height: 36px; width: 36px; display: flex; justify-content: center; align-items: center;
+            background: var(--paper); border: 1px solid var(--border);
+            border-radius: 6px; cursor: pointer; transition: 0.2s; color: var(--btn-text);
+            font-size: 18px;
+        }
+        .icon-btn:hover { background: var(--btn-hover); }
+        /* primaryクラス削除によりGoogleボタンも統一デザインに */
+        
+        /* 鉛筆ボタン調整 */
+        #rename-doc-btn { font-size: 20px; line-height: 1; }
+
+        .status-panel { text-align: right; min-width: 70px; margin-left: 10px; }
+        #char-counter { font-size: 11px; font-weight: bold; color: var(--accent); }
+        #sync-status { font-size: 9px; text-transform: uppercase; color: #64748b; }
+
+        /* Toolbar */
+        #toolbar {
+            background-color: var(--bg-base); padding: 10px 16px; 
+            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 10px; z-index: 9;
+        }
+        
+        .action-row { 
+            display: flex; align-items: center; gap: 10px; 
+            overflow-x: auto; scrollbar-width: none; 
+        }
+        
+        .text-btn {
+            background: var(--paper); border: 1px solid var(--border);
+            padding: 0 14px; height: 34px; border-radius: 6px; 
+            font-size: 12px; cursor: pointer; color: var(--btn-text); font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex-shrink: 0; transition: 0.1s;
+        }
+        .text-btn:active { transform: translateY(1px); box-shadow: none; }
+        #speech-btn { color: var(--accent); border-color: var(--accent); background: #fff; } 
+
+        .marker-palette { 
+            display: flex; gap: 14px; padding: 4px 2px; overflow-x: auto; 
+            min-height: 40px; align-items: center;
+        }
+        
+        /* 色ボタン */
+        .color-dot {
+            width: 32px; height: 32px; border-radius: 50%;
+            cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid #fff;
+        }
+        .color-dot:active { transform: scale(0.9); }
+
+        /* Main Editor */
+        main { flex: 1; overflow: hidden; background: var(--paper); position: relative; }
+        #main-text-area {
+            width: 100%; height: 100%; padding: 30px 5%; font-size: 17px; line-height: 2.0;
+            overflow-y: auto; outline: none; white-space: pre-wrap; color: var(--ink);
+            max-width: 900px; margin: 0 auto;
+        }
+        #main-text-area:empty::before { content: "Google認証(G)を押して開始..."; color: #94a3b8; }
+        
+        /* Marker Logic */
+        .marker { 
+            cursor: pointer; border-radius: 3px; padding: 0 2px; margin: 0 1px;
+            transition: 0.1s; border-bottom: 2px solid rgba(0,0,0,0.1);
+        }
+        
+        /* 隠蔽時：背景色と文字色を同じにする */
+        .marker.masked[data-color="red"] { background: var(--m-red); color: var(--m-red); }
+        .marker.masked[data-color="orange"] { background: var(--m-orange); color: var(--m-orange); }
+        .marker.masked[data-color="yellow"] { background: var(--m-yellow); color: var(--m-yellow); }
+        .marker.masked[data-color="green"] { background: var(--m-green); color: var(--m-green); }
+        .marker.masked[data-color="blue"] { background: var(--m-blue); color: var(--m-blue); }
+        .marker.masked[data-color="purple"] { background: var(--m-purple); color: var(--m-purple); }
+        
+        /* 公開時 */
+        .marker.reveal { background: var(--highlight) !important; color: var(--ink) !important; border-bottom-color: transparent; font-weight: bold; }
+
+        /* Modal */
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: rgba(0,0,0,0.7); z-index: 9999; display: none; justify-content: center; align-items: center;
+            background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 100;
+            backdrop-filter: blur(2px);
         }
         .modal-content { 
-            background: #fff; width: 92%; max-width: 400px; border-radius: 12px; padding: 24px; 
-            display: flex; flex-direction: column; gap: 16px; 
+            background: var(--paper); width: 90%; max-width: 360px; padding: 24px; 
+            border: 1px solid var(--border); border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            display: flex; flex-direction: column; gap: 16px;
         }
-        #rename-input {
-            width: 100%; height: 44px; border: 1px solid #cbd5e0; border-radius: 8px; 
-            padding: 0 12px; font-size: 18px;
+        .modal-content h3 { margin: 0; font-size: 16px; color: var(--ink); }
+        #rename-input { 
+            width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; 
+            background: var(--bg-base); outline: none; font-size: 16px; color: var(--ink);
         }
     </style>
 </head>
 <body>
     <div id="app-root">
         <header>
-            <div class="doc-controls">
+            <div class="controls-group">
                 <select id="doc-select"></select>
-                <button id="rename-doc-btn" class="icon-btn">✎</button>
-                <button id="auth-btn" class="icon-btn" style="background:var(--accent-blue)" disabled title="Loading...">G</button>
-                <button id="sync-all-btn" class="icon-btn" style="background:var(--accent-green)">↻</button>
+                <button id="rename-doc-btn" class="icon-btn" title="名前変更">✏️</button>
+                <button id="auth-btn" class="icon-btn" title="Google認証">G</button>
+                <button id="sync-all-btn" class="icon-btn" title="同期">☁</button>
+                <button id="manual-save-btn" class="icon-btn" title="保存">💾</button>
             </div>
-            <div class="meta-info">
-                <div id="char-counter">0文字</div>
-                <div id="sync-status">Booting...</div>
+            <div class="status-panel">
+                <div id="char-counter">0 chars</div>
+                <div id="sync-status">Offline</div>
             </div>
         </header>
 
-        <div id="toolbar-container">
+        <div id="toolbar">
             <div class="action-row">
-                <button class="action-btn" id="paste-btn">📋 貼付</button>
-                <button class="action-btn" id="speech-btn" style="border-color: #3b82f6; color: #2563eb;">▶ 読上</button>
-                <select id="speech-rate-select" class="action-btn">
+                <button class="text-btn" id="paste-btn">貼付</button>
+                <button class="text-btn" id="copy-btn">コピー</button>
+                <button class="text-btn" id="speech-btn">▶ 読上</button>
+                <select id="speech-rate" class="text-btn" style="min-width:60px;">
                     <option value="0.8">0.8x</option>
                     <option value="1.0" selected>1.0x</option>
                     <option value="1.5">1.5x</option>
                 </select>
-                <button class="action-btn" id="copy-btn">📄 複写</button>
-                <label class="action-btn" style="margin-left:auto; display:flex; align-items:center; gap:4px;">
-                    <input type="checkbox" id="toggle-markers-cb" checked> 隠
+                <label style="margin-left:auto; font-size: 12px; display:flex; align-items:center; gap:6px; color: var(--ink); font-weight: 600; cursor:pointer;">
+                    <input type="checkbox" id="toggle-markers-cb" checked style="transform:scale(1.2);"> 
+                    隠す
                 </label>
             </div>
-            <div class="marker-scroll-row" id="marker-palette"></div>
+            <div class="marker-palette" id="marker-palette"></div>
         </div>
 
         <main>
@@ -129,53 +195,28 @@
 
     <div id="modal-overlay">
         <div class="modal-content">
-            <h3 id="modal-title" style="margin:0;">文書名を変更</h3>
+            <h3>文書名を変更</h3>
             <input type="text" id="rename-input">
-            <div style="display:flex; justify-content:flex-end; gap:12px;">
-                <button class="action-btn" id="modal-ok-btn" style="background:var(--accent-blue); color:white; border:none;">決定</button>
-                <button class="action-btn" id="modal-cancel-btn">閉じる</button>
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="text-btn" id="modal-ok-btn" style="background:var(--accent); color:white; border:none;">更新</button>
+                <button class="text-btn" id="modal-cancel-btn">取消</button>
             </div>
         </div>
     </div>
 
-    <!-- Script Loading Manager -->
-    <script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <script type="module">
         const CLIENT_ID = '221098146252-psmtjk7chc54n35tpp4jgr3sgbipsemn.apps.googleusercontent.com';
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
         const FOLDER_NAME = 'MarKer';
 
-        let gapiInited = false;
-        let gisInited = false;
-
-        function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                const btn = document.getElementById('auth-btn');
-                if (btn) {
-                    btn.disabled = false;
-                    btn.title = "Google Drive Syncを開始";
-                }
-                const status = document.getElementById('sync-status');
-                if (status && status.innerText === "Booting...") status.innerText = "Ready";
-            }
-        }
-
-        // Global Error Handler to prevent reload loops
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Caught Global Error:', msg, error);
-            const status = document.getElementById('sync-status');
-            if (status) status.innerText = "Script Error";
-            return true; // Stop propagation
-        };
-    </script>
-    <script src="https://accounts.google.com/gsi/client" onload="gisInited = true; maybeEnableButtons();"></script>
-    <script src="https://apis.google.com/js/api.js" onload="gapiInited = true; maybeEnableButtons();"></script>
-
-    <script type="module">
         class MushikuiDriveApp {
             constructor() {
                 const localData = localStorage.getItem('mushikui_drive_v6');
                 this.state = {
-                    documents: localData ? JSON.parse(localData) : Array.from({length:20}, (_,i)=>({title:`文書 ${i+1}`, content:'', rules:''})),
+                    documents: localData ? JSON.parse(localData) : Array.from({length:20}, (_,i)=>({title:`Doc ${i+1}`, content:'', rules:''})),
                     currentIndex: 0,
                     accessToken: null,
                     folderId: null,
@@ -183,53 +224,76 @@
                     isSaving: false
                 };
                 this.colors = [
-                    { id: 'red', code: '#ef4444' }, { id: 'orange', code: '#f97316' },
-                    { id: 'yellow', code: '#eab308' }, { id: 'green', code: '#22c55e' },
-                    { id: 'blue', code: '#3b82f6' }, { id: 'purple', code: '#a855f7' }
+                    { id: 'red', code: '#f87171' }, { id: 'orange', code: '#fb923c' },
+                    { id: 'yellow', code: '#facc15' }, { id: 'green', code: '#4ade80' },
+                    { id: 'blue', code: '#60a5fa' }, { id: 'purple', code: '#c084fc' }
                 ];
                 this.tokenClient = null;
                 this.isSpeaking = false;
-                this.lastTapTime = 0;
-                this.lastTapTarget = null;
+                this.dom = {}; // DOM参照用
             }
 
             async init() {
-                this.editor = document.getElementById('main-text-area');
-                this.docSelect = document.getElementById('doc-select');
-                this.syncStatus = document.getElementById('sync-status');
-                
-                this.renderPalette();
-                this.bindEvents();
-                this.updateMeta();
-                this.refresh();
-
-                // Initialize GAPI
                 try {
+                    // DOM要素を確実に取得
+                    this.dom.editor = document.getElementById('main-text-area');
+                    this.dom.select = document.getElementById('doc-select');
+                    this.dom.status = document.getElementById('sync-status');
+                    this.dom.counter = document.getElementById('char-counter');
+                    this.dom.mask = document.getElementById('toggle-markers-cb');
+                    
+                    this.renderPalette();
+                    this.bindEvents();
+                    this.updateMeta();
+                    this.refresh();
+
+                    await this.waitForGoogleLibs();
+                    
                     window.gapi.load('client', async () => {
-                        await window.gapi.client.init({});
-                        await window.gapi.client.load('drive', 'v3');
-                        this.showStatus("GAPI Ready");
+                        try {
+                            await window.gapi.client.init({});
+                            await window.gapi.client.load('drive', 'v3');
+                            this.showStatus("GAPI Ready");
+                        } catch (e) { console.error("GAPI Error", e); }
                     });
 
                     this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-                        client_id: CLIENT_ID,
-                        scope: SCOPES,
+                        client_id: CLIENT_ID, scope: SCOPES,
                         callback: (resp) => this.handleAuthResponse(resp),
                     });
-                } catch (e) {
-                    this.showStatus("Init Failure");
+                    
+                    this.showStatus("Ready");
+                } catch (err) {
+                    console.error("System Init Error:", err);
+                    this.showStatus("Offline Mode");
                 }
             }
 
-            async handleAuthResponse(resp) {
-                if (resp.error) {
-                    this.showStatus("Auth: " + resp.error);
+            waitForGoogleLibs() {
+                return new Promise((resolve, reject) => {
+                    let count = 0;
+                    const check = () => {
+                        if (window.gapi && window.google && window.google.accounts) {
+                            resolve();
+                        } else if (count > 50) {
+                            reject(new Error("Timeout loading libs"));
+                        } else {
+                            count++;
+                            setTimeout(check, 200);
+                        }
+                    };
+                    check();
+                });
+            }
+
+            handleAuth(r) {
+                if (r.error) {
+                    this.showStatus("Auth: " + r.error);
                     return;
                 }
-                this.state.accessToken = resp.access_token;
+                this.state.accessToken = r.access_token;
                 this.showStatus("Auth OK");
-                await this.initDriveFolder();
-                await this.syncAllWithDrive();
+                this.initDriveFolder().then(() => this.syncAllWithDrive());
             }
 
             async initDriveFolder() {
@@ -250,7 +314,7 @@
                         const folder = await createRes.json();
                         this.state.folderId = folder.id;
                     }
-                } catch (e) { this.showStatus("Folder Err"); }
+                } catch (e) { console.error("Drive folder init error", e); }
             }
 
             async syncAllWithDrive() {
@@ -274,9 +338,10 @@
                             this.state.documents[idx] = await contentRes.json();
                         }
                     }
+                    this.updateMeta(); // タイトル更新反映
                     this.refresh();
-                    this.showStatus("Drive Synced");
-                } catch (e) { this.showStatus("Sync Err"); }
+                    this.showStatus("Cloud Synced");
+                } catch (e) { this.showStatus("Sync Failed"); }
             }
 
             async saveCurrentToDrive() {
@@ -319,8 +384,8 @@
 
                 const getCtx = (isPre) => {
                     const r = document.createRange();
-                    if(isPre) { r.setStart(this.editor, 0); r.setEnd(range.startContainer, range.startOffset); }
-                    else { r.setStart(range.endContainer, range.endOffset); r.setEnd(this.editor, this.editor.childNodes.length); }
+                    if(isPre) { r.setStart(this.dom.editor, 0); r.setEnd(range.startContainer, range.startOffset); }
+                    else { r.setStart(range.endContainer, range.endOffset); r.setEnd(this.dom.editor, this.dom.editor.childNodes.length); }
                     const txt = r.cloneContents().textContent || "";
                     return isPre ? [...txt].slice(-4).join('') : [...txt].slice(0, 4).join('');
                 };
@@ -338,27 +403,23 @@
             refresh() {
                 const docData = this.state.documents[this.state.currentIndex];
                 const raw = docData.content || '';
-                this.editor.innerHTML = '';
+                this.dom.editor.innerHTML = '';
                 let nodes = [{ text: raw, type: 'text' }];
                 const rules = (docData.rules || '').split('\n').filter(r => r.includes('->'));
-                
+                const isMasked = this.dom.mask.checked;
+
                 rules.forEach(rule => {
                     const [meta, body] = rule.split('->');
-                    if (!body) return;
                     const [target, colorPart] = body.split('%%');
-                    if (!target) return; // Infinite Loop Guard
-                    
-                    const colorId = colorPart ? colorPart.replace('C', '') : 'red';
-                    const pre = meta ? meta.split('[SEP]')[0] : "";
+                    const colorId = colorPart.replace('C', '') || 'red';
+                    const pre = meta.split('[SEP]')[0] || '';
                     const pattern = pre + target;
                     
-                    if (!pattern) return; // Double Guard
-
                     for (let i = 0; i < nodes.length; i++) {
                         if (nodes[i].type === 'text') {
-                            const idx = nodes[i].text.indexOf(pattern);
-                            if (idx > -1) {
-                                const start = idx + pre.length;
+                            const pos = nodes[i].text.indexOf(pattern);
+                            if (pos > -1) {
+                                const start = pos + pre.length;
                                 nodes.splice(i, 1, 
                                     { text: nodes[i].text.substring(0, start), type: 'text' },
                                     { text: target, type: 'marker', color: colorId, rule: rule },
@@ -373,40 +434,41 @@
                 nodes.forEach(n => {
                     if (n.type === 'text') {
                         n.text.split('\n').forEach((t, i, a) => {
-                            if(t) this.editor.appendChild(document.createTextNode(t));
-                            if(i < a.length - 1) this.editor.appendChild(document.createElement('br'));
+                            if(t) this.dom.editor.appendChild(document.createTextNode(t));
+                            if(i < a.length - 1) this.dom.editor.appendChild(document.createElement('br'));
                         });
                     } else {
                         const span = document.createElement('span');
-                        span.className = 'marker';
-                        span.dataset.rule = n.rule; span.dataset.color = n.color;
-                        span.textContent = n.text; this.editor.appendChild(span);
+                        span.className = `marker ${isMasked ? 'masked' : 'reveal'}`;
+                        span.dataset.color = n.color; span.dataset.rule = n.rule;
+                        span.textContent = n.text; 
+                        this.dom.editor.appendChild(span);
                     }
                 });
                 this.updateCharCount();
-                this.toggleVisibility(document.getElementById('toggle-markers-cb').checked);
             }
 
             bindEvents() {
-                this.editor.addEventListener('input', () => {
-                    this.state.documents[this.state.currentIndex].content = this.editor.innerText;
+                this.dom.editor.addEventListener('input', () => {
+                    this.state.documents[this.state.currentIndex].content = this.dom.editor.innerText;
                     this.autoSave();
                 });
-                this.editor.addEventListener('click', (e) => {
+                this.dom.editor.addEventListener('click', (e) => {
                     const m = e.target.closest('.marker');
                     if (m) {
                         const now = Date.now();
                         if (now - this.lastTapTime < 350 && this.lastTapTarget === m) {
-                            if(confirm("このマーカーを削除しますか？")) this.delRule(m.dataset.rule);
+                            if(confirm("削除しますか？")) this.delRule(m.dataset.rule);
                             this.lastTapTime = 0;
                         } else {
                             m.classList.toggle('reveal');
+                            m.classList.toggle('masked');
                             this.lastTapTime = now;
                             this.lastTapTarget = m;
                         }
                     }
                 });
-                this.docSelect.addEventListener('change', (e) => {
+                this.dom.select.addEventListener('change', (e) => {
                     this.state.currentIndex = parseInt(e.target.value);
                     this.refresh();
                 });
@@ -414,7 +476,10 @@
                     if (this.tokenClient) this.tokenClient.requestAccessToken();
                 };
                 document.getElementById('sync-all-btn').onclick = () => this.syncAllWithDrive();
+                document.getElementById('manual-save-btn').onclick = () => this.saveCurrentToDrive();
+                
                 document.getElementById('rename-doc-btn').onclick = () => this.openRename();
+                // 修正: HTMLのIDと一致させる
                 document.getElementById('modal-ok-btn').onclick = () => this.applyRename();
                 document.getElementById('modal-cancel-btn').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
                 document.getElementById('speech-btn').onclick = () => this.toggleSpeech();
@@ -422,7 +487,7 @@
                 document.getElementById('copy-btn').onclick = () => {
                     const dummy = document.createElement("textarea");
                     document.body.appendChild(dummy);
-                    dummy.value = this.editor.innerText;
+                    dummy.value = this.dom.editor.innerText;
                     dummy.select();
                     document.execCommand("copy");
                     document.body.removeChild(dummy);
@@ -430,14 +495,16 @@
                 };
 
                 document.getElementById('paste-btn').onclick = () => {
-                    const text = prompt("テキストを入力：");
+                    const text = prompt("ここにテキストを貼り付けてください：");
                     if (text !== null) {
-                        this.editor.innerText = text;
+                        this.dom.editor.innerText = text;
                         this.state.documents[this.state.currentIndex].content = text;
                         this.autoSave();
                         this.refresh();
                     }
                 };
+                
+                this.dom.mask.onchange = () => this.refresh();
             }
 
             delRule(ruleText) {
@@ -457,18 +524,26 @@
 
             persistLocal() { localStorage.setItem('mushikui_drive_v6', JSON.stringify(this.state.documents)); }
             updateMeta() {
-                this.docSelect.innerHTML = this.state.documents.map((d,i) => `<option value="${i}">${d.title}</option>`).join('');
-                this.docSelect.value = this.state.currentIndex;
+                this.dom.select.innerHTML = this.state.documents.map((d,i) => `<option value="${i}">${d.title}</option>`).join('');
+                this.dom.select.value = this.state.currentIndex;
             }
-            updateCharCount() { document.getElementById('char-counter').textContent = `${this.editor.innerText.length}文字`; }
-            showStatus(msg) { if(this.syncStatus) this.syncStatus.textContent = msg; }
+            updateCharCount() { 
+                if (this.dom.counter) {
+                    this.dom.counter.textContent = `${this.dom.editor.innerText.length} chars`; 
+                }
+            }
+            showStatus(msg) { if(this.dom.status) this.dom.status.textContent = msg; }
 
             renderPalette() {
                 const p = document.getElementById('marker-palette');
                 this.colors.forEach(c => {
                     const btn = document.createElement('div');
-                    btn.className = 'palette-btn'; btn.style.backgroundColor = c.code;
-                    btn.onpointerdown = (e) => { e.preventDefault(); this.createMarker(c.id); };
+                    btn.className = 'color-dot'; 
+                    btn.style.backgroundColor = c.code;
+                    btn.addEventListener('pointerdown', (e) => {
+                        e.preventDefault();
+                        this.createMarker(c.id);
+                    });
                     p.appendChild(btn);
                 });
             }
@@ -489,16 +564,16 @@
             }
 
             toggleVisibility(hide) {
-                this.editor.querySelectorAll('.marker').forEach(m => {
+                this.dom.editor.querySelectorAll('.marker').forEach(m => {
                     if (hide) m.classList.remove('reveal'); else m.classList.add('reveal');
                 });
             }
 
             toggleSpeech() {
                 if (this.isSpeaking) { window.speechSynthesis.cancel(); this.isSpeaking = false; return; }
-                const u = new SpeechSynthesisUtterance(this.editor.innerText);
+                const u = new SpeechSynthesisUtterance(this.dom.editor.innerText);
                 u.lang = 'ja-JP';
-                u.rate = parseFloat(document.getElementById('speech-rate-select').value);
+                u.rate = parseFloat(document.getElementById('speech-rate').value);
                 u.onend = () => this.isSpeaking = false;
                 window.speechSynthesis.speak(u);
                 this.isSpeaking = true;
