@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v5.7.5</title>
+    <title>虫食 v5.7.6</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -124,7 +124,7 @@
             <div class="action-row">
                 <button class="action-btn" id="paste-btn">📋 貼付</button>
                 <button class="action-btn" id="speech-btn" style="min-width: 90px; font-weight: bold; border-color: #3b82f6; color: #2563eb;">▶ 読上</button>
-                <select id="speech-rate-select" class="action-btn" aria-label="読上速度">
+                <select id="speech-rate-select" class="action-btn" aria-label="速度">
                     <option value="0.6">0.6x</option>
                     <option value="0.8">0.8x</option>
                     <option value="1.0" selected>1.0x</option>
@@ -140,9 +140,9 @@
         </div>
 
         <main>
-            <div id="main-text-area" contenteditable="true" spellcheck="false" aria-label="文章入力エリア"></div>
+            <div id="main-text-area" contenteditable="true" spellcheck="false"></div>
             <div class="panel manager closed" id="manager-panel">
-                <div class="panel-header" id="manager-header" role="button" aria-expanded="false">
+                <div class="panel-header" id="manager-header" role="button">
                     <span>虫食箇所一覧</span>
                     <span id="toggle-manager-icon">▲</span>
                 </div>
@@ -157,7 +157,7 @@
             <div id="sync-view">
                 <p style="font-size:13px; color:#475569;">同期用IDを入力（例: 513042042）:</p>
                 <input type="text" id="sync-id-input" placeholder="番号を入力">
-                <p style="font-size:11px; color:#64748b; margin-top: 8px;">※同じ数字を入力すれば共通の文章を同期できます。</p>
+                <p style="font-size:11px; color:#64748b; margin-top: 8px;">※別の端末でも同じ数字を入力すれば同期できます。</p>
             </div>
             <div id="rename-view" style="display:none;">
                 <input type="text" id="rename-input" style="width:100%; height:44px; border:1px solid #cbd5e0; border-radius:8px; padding: 0 12px;">
@@ -220,7 +220,9 @@
                         } else {
                             await signInAnonymously(auth);
                         }
-                    } catch (e) { console.error("Auth Failure", e); }
+                    } catch (e) { 
+                        this.showStatus("通信制限中(Brave等)");
+                    }
                 };
                 await initAuth();
 
@@ -266,6 +268,7 @@
                     const btn = document.createElement('div');
                     btn.className = 'palette-btn';
                     btn.style.backgroundColor = c.code;
+                    // iPad対応: pointerdown
                     btn.addEventListener('pointerdown', (e) => {
                         e.preventDefault();
                         this.createMarker(c.id);
@@ -298,24 +301,22 @@
                     this.state.lastSpeechIndex = 0; 
                     this.refresh();
                 });
-                document.getElementById('rename-doc-btn').addEventListener('click', () => this.openRename());
-                document.getElementById('cloud-load-btn').addEventListener('click', () => this.loadCloud(true));
-                document.getElementById('manual-save-btn').addEventListener('click', () => this.saveCloud(true));
-                document.getElementById('sync-setup-btn').addEventListener('click', () => this.openSyncSetup());
-                document.getElementById('manager-header').addEventListener('click', () => {
-                    const panel = document.getElementById('manager-panel');
-                    const isClosed = panel.classList.toggle('closed');
-                    document.getElementById('manager-header').setAttribute('aria-expanded', !isClosed);
-                });
-                this.speechBtn.addEventListener('click', () => this.toggleSpeech());
-                document.getElementById('copy-btn').addEventListener('click', () => { 
+                document.getElementById('rename-doc-btn').onclick = () => this.openRename();
+                document.getElementById('cloud-load-btn').onclick = () => this.loadCloud(true);
+                document.getElementById('manual-save-btn').onclick = () => this.saveCloud(true);
+                document.getElementById('sync-setup-btn').onclick = () => this.openSyncSetup();
+                document.getElementById('manager-header').onclick = () => {
+                    document.getElementById('manager-panel').classList.toggle('closed');
+                };
+                this.speechBtn.onclick = () => this.toggleSpeech();
+                document.getElementById('copy-btn').onclick = () => { 
                     navigator.clipboard.writeText(this.editor.innerText);
-                    this.showStatus("本文をコピーしました");
-                });
-                document.getElementById('toggle-markers-cb').addEventListener('change', (e) => this.toggleVisibility(e.target.checked));
-                document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+                    this.showStatus("コピー完了");
+                };
+                document.getElementById('toggle-markers-cb').onchange = (e) => this.toggleVisibility(e.target.checked);
+                document.getElementById('modal-cancel-btn').onclick = () => {
                     document.getElementById('modal-overlay').style.display = 'none';
-                });
+                };
             }
 
             createMarker(colorId) {
@@ -380,7 +381,6 @@
                     } else {
                         const span = document.createElement('span');
                         span.className = 'marker';
-                        span.setAttribute('role', 'button');
                         span.dataset.text = n.text; span.dataset.rule = n.rule; span.dataset.color = n.color;
                         span.textContent = n.text; this.editor.appendChild(span);
                     }
@@ -402,14 +402,14 @@
                     const item = document.createElement('div');
                     item.className = 'manager-item';
                     item.innerHTML = `<div style="width:20px;height:20px;background:${code};border-radius:3px"></div><div class="manager-item-text">${parts[0]}</div><button class="manager-item-delete">×</button>`;
-                    item.querySelector('.manager-item-delete').addEventListener('click', (e) => { 
+                    item.querySelector('.manager-item-delete').onclick = (e) => { 
                         e.stopPropagation(); 
                         this.delRule(r); 
-                    });
-                    item.addEventListener('click', () => {
+                    };
+                    item.onclick = () => {
                         const el = Array.from(this.editor.querySelectorAll('.marker')).find(m => m.dataset.rule === r);
                         if(el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.classList.add('reveal'); }
-                    });
+                    };
                     list.appendChild(item);
                 });
             }
@@ -425,11 +425,11 @@
             }
 
             async saveCloud(manual = false) {
-                if (!this.state.syncId || !this.state.user) { if(manual) this.showStatus("ID設定必須"); return; }
+                if (!this.state.syncId || !this.state.user) return;
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
                     await setDoc(docRef, { ...this.state.appData, lastUpdated: new Date().toISOString() });
-                    this.showStatus("保存完了");
+                    if(manual) this.showStatus("保存完了");
                 } catch(e) { this.showStatus("保存失敗"); }
             }
 
@@ -440,11 +440,11 @@
                     const snap = await getDoc(docRef);
                     if (snap.exists()) { 
                         const data = snap.data();
-                        if(data && data.documents && data.documents.some(d => (d.content || "").length > 0)) {
+                        if(data && data.documents) {
                             this.state.appData = data; this.refresh();
-                            this.showStatus("同期完了");
+                            if(manual) this.showStatus("同期完了");
                         }
-                    } else if(manual) this.showStatus("データなし");
+                    }
                 } catch(e) { this.showStatus("読込失敗"); }
             }
 
@@ -458,10 +458,8 @@
 
             openSyncSetup() {
                 const m = document.getElementById('modal-overlay');
-                const view = document.getElementById('sync-view');
-                const rview = document.getElementById('rename-view');
-                rview.style.display = 'none';
-                view.style.display = 'block';
+                document.getElementById('rename-view').style.display = 'none';
+                document.getElementById('sync-view').style.display = 'block';
                 m.style.display = 'flex';
                 document.getElementById('sync-id-input').value = this.state.syncId || "";
                 document.getElementById('modal-ok-btn').onclick = async () => {
@@ -479,10 +477,8 @@
 
             openRename() {
                 const m = document.getElementById('modal-overlay');
-                const view = document.getElementById('sync-view');
-                const rview = document.getElementById('rename-view');
-                view.style.display = 'none';
-                rview.style.display = 'block';
+                document.getElementById('sync-view').style.display = 'none';
+                document.getElementById('rename-view').style.display = 'block';
                 m.style.display = 'flex';
                 const input = document.getElementById('rename-input');
                 input.value = this.state.appData.documents[this.state.currentDocIndex].title;
@@ -518,7 +514,6 @@
                     window.speechSynthesis.cancel();
                     this.state.isSpeaking = false;
                     this.speechBtn.textContent = "▶ 続きから";
-                    this.showStatus("停止中");
                     return;
                 }
                 const currentFullText = this.editor.innerText;
@@ -541,17 +536,10 @@
                     this.speechBtn.textContent = "▶ 読上";
                     this.state.lastSpeechIndex = 0;
                     if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
-                    this.showStatus("完了");
-                };
-                u.onerror = () => {
-                    this.state.isSpeaking = false;
-                    this.speechBtn.textContent = "▶ 読上";
-                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
                 };
                 window.speechSynthesis.speak(u);
                 this.state.isSpeaking = true;
                 this.speechBtn.textContent = "⏹ 中断";
-                this.showStatus("読上中...");
                 if (this.resumeTimer) clearInterval(this.resumeTimer);
                 this.resumeTimer = setInterval(() => {
                     if (!this.state.isSpeaking) { clearInterval(this.resumeTimer); return; }
