@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>暗記ツール v5.7.4</title>
+    <title>虫食 v5.7.5</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -131,7 +131,7 @@
                     <option value="1.2">1.2x</option>
                     <option value="1.5">1.5x</option>
                 </select>
-                <button class="action-btn" id="copy-btn">📄 本文コピー</button>
+                <button class="action-btn" id="copy-btn">📄 コピー</button>
                 <label class="action-btn" style="margin-left:auto; display: flex; align-items: center; gap: 6px;">
                     <input type="checkbox" id="toggle-markers-cb" checked> 隠す
                 </label>
@@ -143,7 +143,7 @@
             <div id="main-text-area" contenteditable="true" spellcheck="false" aria-label="文章入力エリア"></div>
             <div class="panel manager closed" id="manager-panel">
                 <div class="panel-header" id="manager-header" role="button" aria-expanded="false">
-                    <span>隠蔽箇所一覧</span>
+                    <span>虫食箇所一覧</span>
                     <span id="toggle-manager-icon">▲</span>
                 </div>
                 <div id="marker-manager-list"></div>
@@ -153,7 +153,7 @@
 
     <div id="modal-overlay">
         <div class="modal-content">
-            <h3 id="modal-title" style="margin:0; color: #1e293b;">同期ID設定</h3>
+            <h3 id="modal-title" style="margin:0; color: #1e293b;">同期設定</h3>
             <div id="sync-view">
                 <p style="font-size:13px; color:#475569;">同期用IDを入力（例: 513042042）:</p>
                 <input type="text" id="sync-id-input" placeholder="番号を入力">
@@ -178,9 +178,9 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'memorize-tool-v5'; 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mushikui-tool-v5'; 
 
-        class MarkerToolV5 {
+        class MushikuiToolV5 {
             constructor() {
                 const savedId = localStorage.getItem('user_numeric_id');
                 this.state = {
@@ -352,7 +352,9 @@
                     const [meta, body] = rule.split('->');
                     const [target, colorPart] = body.split('%%');
                     const colorId = colorPart.startsWith('C') ? colorPart.substring(1) : 'red';
-                    const pre = meta.split('::')[1].split('[SEP]')[0] || "";
+                    const preSec = meta.split('::')[1];
+                    if(!preSec) return;
+                    const pre = preSec.split('[SEP]')[0] || "";
                     const pattern = pre + target;
                     for (let i = 0; i < nodes.length; i++) {
                         if (nodes[i].type === 'text') {
@@ -448,9 +450,9 @@
 
             showStatus(msg) {
                 if(this.saveStatus) {
-                    const original = this.state.syncId || "未設定";
+                    const originalId = this.state.syncId || "未設定";
                     this.saveStatus.textContent = msg;
-                    setTimeout(() => { this.saveStatus.textContent = `ID: ${original}`; }, 3000);
+                    setTimeout(() => { this.saveStatus.textContent = `ID: ${originalId}`; }, 3000);
                 }
             }
 
@@ -558,9 +560,10 @@
             }
         }
         window.onload = () => { 
-            const tool = new MarkerToolV5();
+            const tool = new MushikuiToolV5();
             tool.init();
         };
     </script>
 </body>
 </html>
+
