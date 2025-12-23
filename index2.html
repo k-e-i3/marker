@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v6.0.2 (Drive Sync)</title>
+    <title>虫食 v6.0.3 (Drive Sync)</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -164,6 +164,8 @@
                 ];
                 this.tokenClient = null;
                 this.isSpeaking = false;
+                this.lastTapTime = 0;
+                this.lastTapTarget = null;
             }
 
             async init() {
@@ -185,7 +187,6 @@
                         window.gapi.load('client', async () => {
                             try {
                                 await window.gapi.client.init({});
-                                // Discovery docs load directly
                                 await window.gapi.client.load('drive', 'v3');
                                 this.showStatus("GAPI Ready");
                                 resolve();
@@ -395,7 +396,19 @@
                 });
                 this.editor.addEventListener('click', (e) => {
                     const m = e.target.closest('.marker');
-                    if (m) m.classList.toggle('reveal');
+                    if (m) {
+                        const now = Date.now();
+                        if (now - this.lastTapTime < 350 && this.lastTapTarget === m) {
+                            if(confirm("この虫食を削除しますか？")) {
+                                this.delRule(m.dataset.rule);
+                            }
+                            this.lastTapTime = 0;
+                        } else {
+                            m.classList.toggle('reveal');
+                            this.lastTapTime = now;
+                            this.lastTapTarget = m;
+                        }
+                    }
                 });
                 this.docSelect.addEventListener('change', (e) => {
                     this.state.currentIndex = parseInt(e.target.value);
@@ -429,6 +442,14 @@
                         this.refresh();
                     }
                 };
+            }
+
+            delRule(ruleText) {
+                const doc = this.state.documents[this.state.currentIndex];
+                const rs = (doc.rules || '').split('\n').filter(r => r !== ruleText);
+                doc.rules = rs.join('\n');
+                this.refresh();
+                this.autoSave();
             }
 
             autoSave() {
