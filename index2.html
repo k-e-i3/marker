@@ -3,18 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v7.1.4</title>
+    <title>虫食 v8.2.1</title>
     <style>
+        /* デザインは v7.1.4 (ユーザー指定) を完全踏襲 */
         :root {
-            /* ヘッダー：明るめのスレートグレー (#e2e8f0) に変更 */
+            /* ヘッダー：明るめのスレートグレー (#e2e8f0) */
             --header-bg: #e2e8f0;
-            --header-text: #1e293b; /* 背景が明るいため文字は濃く */
+            --header-text: #1e293b; 
             
             /* ベース */
-            --bg-base: #f1f5f9;       /* 背景：さらに淡いグレー */
-            --paper: #ffffff;         /* エディタ：白 */
-            --ink: #1e293b;           /* 文字：濃いスレート */
-            --border: #cbd5e1;        /* 境界線 */
+            --bg-base: #f1f5f9;       
+            --paper: #ffffff;         
+            --ink: #1e293b;           
+            --border: #cbd5e1;        
             
             /* ボタン類 */
             --btn-bg: #f8fafc;
@@ -54,7 +55,7 @@
         select#doc-select {
             flex-grow: 1; height: 36px; border: 1px solid var(--border);
             border-radius: 6px; font-size: 14px; padding: 0 10px; 
-            background: var(--paper); /* 白背景で見やすく */
+            background: var(--paper); 
             color: var(--ink); font-weight: 600; cursor: pointer;
         }
         select#doc-select option { background: white; color: black; }
@@ -66,14 +67,13 @@
             font-size: 18px;
         }
         .icon-btn:hover { background: var(--btn-hover); }
-        /* primaryクラス削除によりGoogleボタンも統一デザインに */
         
         /* 鉛筆ボタン調整 */
         #rename-doc-btn { font-size: 20px; line-height: 1; }
 
         .status-panel { text-align: right; min-width: 70px; margin-left: 10px; }
-        #char-counter { font-size: 11px; font-weight: bold; color: var(--accent); }
-        #sync-status { font-size: 9px; text-transform: uppercase; color: #64748b; }
+        #char-counter { font-size: 11px; font-weight: bold; color: #475569; }
+        #sync-status { font-size: 9px; text-transform: uppercase; color: #94a3b8; }
 
         /* Toolbar */
         #toolbar {
@@ -101,11 +101,11 @@
             min-height: 40px; align-items: center;
         }
         
-        /* 色ボタン */
+        /* 色ボタン：フラット化（縁・影なし） */
         .color-dot {
             width: 32px; height: 32px; border-radius: 50%;
             cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 2px solid #fff;
+            border: none; box-shadow: none; 
         }
         .color-dot:active { transform: scale(0.9); }
 
@@ -124,7 +124,7 @@
             transition: 0.1s; border-bottom: 2px solid rgba(0,0,0,0.1);
         }
         
-        /* 隠蔽時：背景色と文字色を同じにする */
+        /* 隠蔽時 */
         .marker.masked[data-color="red"] { background: var(--m-red); color: var(--m-red); }
         .marker.masked[data-color="orange"] { background: var(--m-orange); color: var(--m-orange); }
         .marker.masked[data-color="yellow"] { background: var(--m-yellow); color: var(--m-yellow); }
@@ -175,16 +175,17 @@
                 <button class="text-btn" id="paste-btn">貼付</button>
                 <button class="text-btn" id="copy-btn">コピー</button>
                 <button class="text-btn" id="speech-btn">▶ 読上</button>
-                <select id="speech-rate" class="text-btn" style="min-width:60px;">
+                <select id="speech-rate-select" class="text-btn" style="min-width:60px;">
                     <option value="0.8">0.8x</option>
                     <option value="1.0" selected>1.0x</option>
                     <option value="1.5">1.5x</option>
                 </select>
-                <label style="margin-left:auto; font-size: 12px; display:flex; align-items:center; gap:6px; color: var(--ink); font-weight: 600; cursor:pointer;">
+                <label style="margin-left:auto; font-size: 12px; display:flex; align-items:center; gap:6px; color: var(--btn-text); font-weight: 600; cursor:pointer;">
                     <input type="checkbox" id="toggle-markers-cb" checked style="transform:scale(1.2);"> 
                     隠す
                 </label>
             </div>
+            <!-- IDはJS側と一致させる -->
             <div class="marker-palette" id="marker-palette"></div>
         </div>
 
@@ -198,7 +199,7 @@
             <h3>文書名を変更</h3>
             <input type="text" id="rename-input">
             <div style="display:flex; justify-content:flex-end; gap:10px;">
-                <button class="text-btn" id="modal-ok-btn" style="background:var(--accent); color:white; border:none;">更新</button>
+                <button class="text-btn" id="modal-ok-btn" style="background:var(--accent); color:white; border:none;">決定</button>
                 <button class="text-btn" id="modal-cancel-btn">取消</button>
             </div>
         </div>
@@ -221,27 +222,31 @@
                     accessToken: null,
                     folderId: null,
                     fileIds: {}, 
-                    isSaving: false
+                    isSaving: false,
+                    isSpeaking: false,
+                    lastSpeechIndex: 0,
+                    fullTextForSpeech: ""
                 };
+                this.resumeTimer = null;
+                // v7.1.4の色設定
                 this.colors = [
                     { id: 'red', code: '#f87171' }, { id: 'orange', code: '#fb923c' },
                     { id: 'yellow', code: '#facc15' }, { id: 'green', code: '#4ade80' },
                     { id: 'blue', code: '#60a5fa' }, { id: 'purple', code: '#c084fc' }
                 ];
                 this.tokenClient = null;
-                this.isSpeaking = false;
-                this.dom = {}; // DOM参照用
+                this.dom = {};
             }
 
             async init() {
                 try {
-                    // DOM要素を確実に取得
                     this.dom.editor = document.getElementById('main-text-area');
                     this.dom.select = document.getElementById('doc-select');
                     this.dom.status = document.getElementById('sync-status');
                     this.dom.counter = document.getElementById('char-counter');
                     this.dom.mask = document.getElementById('toggle-markers-cb');
-                    
+                    this.dom.speechBtn = document.getElementById('speech-btn');
+
                     this.renderPalette();
                     this.bindEvents();
                     this.updateMeta();
@@ -327,21 +332,23 @@
                     });
                     const data = await res.json();
                     
+                    let count = 0;
                     for (const file of data.files) {
-                        const match = file.name.match(/^mushikui_doc_(\d+)\.json$/);
+                        const match = file.name.match(/^(mushikui_)?doc_(\d+)\.json$/);
                         if (match) {
-                            const idx = parseInt(match[1]);
-                            this.state.fileIds[idx] = file.id;
+                            const i = parseInt(match[2]);
+                            this.state.fileIds[i] = file.id;
                             const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
                                 headers: { Authorization: `Bearer ${this.state.accessToken}` }
                             });
-                            this.state.documents[idx] = await contentRes.json();
+                            this.state.documents[i] = await contentRes.json();
+                            count++;
                         }
                     }
-                    this.updateMeta(); // タイトル更新反映
+                    this.updateMeta();
                     this.refresh();
-                    this.showStatus("Cloud Synced");
-                } catch (e) { this.showStatus("Sync Failed"); }
+                    this.showStatus(`Synced (${count})`);
+                } catch (e) { this.showStatus("Sync Error"); }
             }
 
             async saveCurrentToDrive() {
@@ -350,6 +357,7 @@
                 const idx = this.state.currentIndex;
                 const fileId = this.state.fileIds[idx];
                 const content = JSON.stringify(this.state.documents[idx]);
+                const fileName = `doc_${idx}.json`; // シンプルな名前で統一
 
                 try {
                     if (fileId) {
@@ -359,8 +367,8 @@
                             body: content
                         });
                     } else {
-                        const metadata = { name: `mushikui_doc_${idx}.json`, parents: [this.state.folderId] };
-                        const boundary = '-------';
+                        const metadata = { name: fileName, parents: [this.state.folderId] };
+                        const boundary = '-------314159265358979323846';
                         const body = `--${boundary}\nContent-Type: application/json; charset=UTF-8\n\n${JSON.stringify(metadata)}\n--${boundary}\nContent-Type: application/json\n\n${content}\n--${boundary}--`;
                         const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                             method: 'POST',
@@ -370,7 +378,7 @@
                         const newFile = await res.json();
                         this.state.fileIds[idx] = newFile.id;
                     }
-                    this.showStatus("Cloud Saved");
+                    this.showStatus("Saved");
                 } catch(e) { this.showStatus("Save Err"); }
                 this.state.isSaving = false;
             }
@@ -387,6 +395,7 @@
                     if(isPre) { r.setStart(this.dom.editor, 0); r.setEnd(range.startContainer, range.startOffset); }
                     else { r.setStart(range.endContainer, range.endOffset); r.setEnd(this.dom.editor, this.dom.editor.childNodes.length); }
                     const txt = r.cloneContents().textContent || "";
+                    // 4文字判定
                     return isPre ? [...txt].slice(-4).join('') : [...txt].slice(0, 4).join('');
                 };
 
@@ -400,12 +409,19 @@
                 sel.removeAllRanges();
             }
 
+            delRule(rule) {
+                const doc = this.state.documents[this.state.currentIndex];
+                doc.rules = (doc.rules || '').split('\n').filter(r => r !== rule).join('\n');
+                this.refresh();
+                this.autoSave();
+            }
+
             refresh() {
-                const docData = this.state.documents[this.state.currentIndex];
-                const raw = docData.content || '';
+                const doc = this.state.documents[this.state.currentIndex];
+                const raw = doc.content || '';
                 this.dom.editor.innerHTML = '';
                 let nodes = [{ text: raw, type: 'text' }];
-                const rules = (docData.rules || '').split('\n').filter(r => r.includes('->'));
+                const rules = (doc.rules || '').split('\n').filter(r => r.includes('->'));
                 const isMasked = this.dom.mask.checked;
 
                 rules.forEach(rule => {
@@ -440,7 +456,8 @@
                     } else {
                         const span = document.createElement('span');
                         span.className = `marker ${isMasked ? 'masked' : 'reveal'}`;
-                        span.dataset.color = n.color; span.dataset.rule = n.rule;
+                        span.dataset.color = n.color; 
+                        span.dataset.rule = n.rule;
                         span.textContent = n.text; 
                         this.dom.editor.appendChild(span);
                     }
@@ -456,15 +473,11 @@
                 this.dom.editor.addEventListener('click', (e) => {
                     const m = e.target.closest('.marker');
                     if (m) {
-                        const now = Date.now();
-                        if (now - this.lastTapTime < 350 && this.lastTapTarget === m) {
-                            if(confirm("削除しますか？")) this.delRule(m.dataset.rule);
-                            this.lastTapTime = 0;
+                        if(confirm("削除しますか？")) {
+                            this.delRule(m.dataset.rule);
                         } else {
-                            m.classList.toggle('reveal');
-                            m.classList.toggle('masked');
-                            this.lastTapTime = now;
-                            this.lastTapTarget = m;
+                            // クリックでの開示ロジックが必要ならここに追加
+                            // m.classList.toggle('reveal');
                         }
                     }
                 });
@@ -478,11 +491,12 @@
                 document.getElementById('sync-all-btn').onclick = () => this.syncAllWithDrive();
                 document.getElementById('manual-save-btn').onclick = () => this.saveCurrentToDrive();
                 
-                document.getElementById('rename-doc-btn').onclick = () => this.openRename();
-                // 修正: HTMLのIDと一致させる
+                document.getElementById('rename-doc-btn').onclick = () => {
+                    document.getElementById('rename-input').value = this.state.documents[this.state.currentIndex].title;
+                    document.getElementById('modal-overlay').style.display = 'flex';
+                };
                 document.getElementById('modal-ok-btn').onclick = () => this.applyRename();
                 document.getElementById('modal-cancel-btn').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
-                document.getElementById('speech-btn').onclick = () => this.toggleSpeech();
                 
                 document.getElementById('copy-btn').onclick = () => {
                     const dummy = document.createElement("textarea");
@@ -504,25 +518,17 @@
                     }
                 };
                 
+                document.getElementById('speech-btn').onclick = () => this.toggleSpeech();
                 this.dom.mask.onchange = () => this.refresh();
             }
 
-            delRule(ruleText) {
-                const doc = this.state.documents[this.state.currentIndex];
-                const rs = (doc.rules || '').split('\n').filter(r => r !== ruleText);
-                doc.rules = rs.join('\n');
-                this.refresh();
-                this.autoSave();
-            }
-
             autoSave() {
-                this.persistLocal();
+                localStorage.setItem('mushikui_drive_v6', JSON.stringify(this.state.documents));
                 this.updateCharCount();
-                clearTimeout(this.saveTimer);
-                this.saveTimer = setTimeout(() => this.saveCurrentToDrive(), 5000);
+                clearTimeout(this.stimer);
+                this.stimer = setTimeout(() => this.saveCurrentToDrive(), 5000);
             }
 
-            persistLocal() { localStorage.setItem('mushikui_drive_v6', JSON.stringify(this.state.documents)); }
             updateMeta() {
                 this.dom.select.innerHTML = this.state.documents.map((d,i) => `<option value="${i}">${d.title}</option>`).join('');
                 this.dom.select.value = this.state.currentIndex;
@@ -563,20 +569,76 @@
                 document.getElementById('modal-overlay').style.display = 'none';
             }
 
-            toggleVisibility(hide) {
-                this.dom.editor.querySelectorAll('.marker').forEach(m => {
-                    if (hide) m.classList.remove('reveal'); else m.classList.add('reveal');
-                });
-            }
-
+            // Android読上: 10秒監視
             toggleSpeech() {
-                if (this.isSpeaking) { window.speechSynthesis.cancel(); this.isSpeaking = false; return; }
-                const u = new SpeechSynthesisUtterance(this.dom.editor.innerText);
+                if (this.isSpeaking) {
+                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+                    window.speechSynthesis.cancel();
+                    this.isSpeaking = false;
+                    this.dom.speechBtn.textContent = "▶ 読上";
+                    return;
+                }
+
+                const currentFullText = this.dom.editor.innerText;
+                if (!currentFullText.trim()) return;
+
+                if (this.state.fullTextForSpeech !== currentFullText) {
+                    this.state.lastSpeechIndex = 0;
+                    this.state.fullTextForSpeech = currentFullText;
+                }
+
+                let startIndex = this.state.lastSpeechIndex;
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0 && this.dom.editor.contains(sel.anchorNode)) {
+                    if (!sel.isCollapsed) {
+                        const range = sel.getRangeAt(0);
+                        const preRange = document.createRange();
+                        preRange.setStart(this.dom.editor, 0);
+                        preRange.setEnd(range.startContainer, range.startOffset);
+                        startIndex = preRange.toString().length;
+                    } else {
+                        const range = document.createRange();
+                        range.setStart(this.dom.editor, 0);
+                        range.setEnd(sel.anchorNode, sel.anchorOffset);
+                        startIndex = range.toString().length;
+                    }
+                }
+
+                const textToSpeak = currentFullText.substring(startIndex);
+                
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.resume(); 
+
+                const u = new SpeechSynthesisUtterance(textToSpeak);
                 u.lang = 'ja-JP';
-                u.rate = parseFloat(document.getElementById('speech-rate').value);
-                u.onend = () => this.isSpeaking = false;
+                u.rate = parseFloat(document.getElementById('speech-rate-select').value) || 1.0;
+
+                u.onboundary = (event) => {
+                    this.state.lastSpeechIndex = startIndex + event.charIndex;
+                };
+
+                u.onend = () => {
+                    this.isSpeaking = false;
+                    this.dom.speechBtn.textContent = "▶ 読上";
+                    this.state.lastSpeechIndex = 0;
+                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+                };
+                
+                u.onerror = () => {
+                   this.isSpeaking = false;
+                   this.dom.speechBtn.textContent = "▶ 読上";
+                   if (this.resumeTimer) clearInterval(this.resumeTimer);
+                };
+
                 window.speechSynthesis.speak(u);
                 this.isSpeaking = true;
+                this.dom.speechBtn.textContent = "⏹ 中断";
+
+                if (this.resumeTimer) clearInterval(this.resumeTimer);
+                this.resumeTimer = setInterval(() => {
+                    if (!this.isSpeaking) { clearInterval(this.resumeTimer); return; }
+                    if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
+                }, 10000); 
             }
         }
 
