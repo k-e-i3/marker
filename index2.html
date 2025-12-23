@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v6.0.3 (Drive Sync)</title>
+    <title>虫食 v6.0.4 (Drive Sync)</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -33,6 +33,7 @@
             background-color: var(--button-bg); border: 1px solid rgba(255,255,255,0.1); 
             border-radius: 6px; color: white; font-size: 18px; cursor: pointer; flex-shrink: 0;
         }
+        button.icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
         .meta-info { text-align: right; line-height: 1.2; margin-left: auto; display: flex; flex-direction: column; justify-content: center; min-width: 80px; }
         #char-counter { font-size: 10px; color: #ffffff; font-weight: bold; white-space: nowrap; }
         #sync-status { font-size: 8px; color: #94a3b8; white-space: nowrap; max-width: 100px; overflow: hidden; text-overflow: ellipsis; }
@@ -61,7 +62,7 @@
             white-space: pre-wrap; word-wrap: break-word; overflow-y: auto; outline: none;
             -webkit-user-modify: read-write-plaintext-only;
         }
-        #main-text-area:empty::before { content: "Google認証(G)を押して同期開始..."; color: #94a3b8; }
+        #main-text-area:empty::before { content: "初期化中..."; color: #94a3b8; }
         
         .marker { 
             cursor: pointer; border-radius: 2px; user-select: none; transition: all 0.2s; padding: 0 2px; margin: 0 1px;
@@ -95,12 +96,12 @@
             <div class="doc-controls">
                 <select id="doc-select"></select>
                 <button id="rename-doc-btn" class="icon-btn">✎</button>
-                <button id="auth-btn" class="icon-btn" style="background:var(--accent-blue)">G</button>
+                <button id="auth-btn" class="icon-btn" style="background:var(--accent-blue)" disabled title="Loading...">G</button>
                 <button id="sync-all-btn" class="icon-btn" style="background:var(--accent-green)">↻</button>
             </div>
             <div class="meta-info">
                 <div id="char-counter">0文字</div>
-                <div id="sync-status">Offline</div>
+                <div id="sync-status">Booting...</div>
             </div>
         </header>
 
@@ -137,15 +138,39 @@
         </div>
     </div>
 
-    <!-- Google Scripts -->
-    <script src="https://accounts.google.com/gsi/client"></script>
-    <script src="https://apis.google.com/js/api.js"></script>
-
-    <script type="module">
+    <!-- Script Loading Manager -->
+    <script>
         const CLIENT_ID = '221098146252-psmtjk7chc54n35tpp4jgr3sgbipsemn.apps.googleusercontent.com';
         const SCOPES = 'https://www.googleapis.com/auth/drive.file';
         const FOLDER_NAME = 'MarKer';
 
+        let gapiInited = false;
+        let gisInited = false;
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                const btn = document.getElementById('auth-btn');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.title = "Google Drive Syncを開始";
+                }
+                const status = document.getElementById('sync-status');
+                if (status && status.innerText === "Booting...") status.innerText = "Ready";
+            }
+        }
+
+        // Global Error Handler to prevent reload loops
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Caught Global Error:', msg, error);
+            const status = document.getElementById('sync-status');
+            if (status) status.innerText = "Script Error";
+            return true; // Stop propagation
+        };
+    </script>
+    <script src="https://accounts.google.com/gsi/client" onload="gisInited = true; maybeEnableButtons();"></script>
+    <script src="https://apis.google.com/js/api.js" onload="gapiInited = true; maybeEnableButtons();"></script>
+
+    <script type="module">
         class MushikuiDriveApp {
             constructor() {
                 const localData = localStorage.getItem('mushikui_drive_v6');
@@ -169,68 +194,36 @@
             }
 
             async init() {
-                try {
-                    this.editor = document.getElementById('main-text-area');
-                    this.docSelect = document.getElementById('doc-select');
-                    this.syncStatus = document.getElementById('sync-status');
-                    
-                    this.renderPalette();
-                    this.bindEvents();
-                    this.updateMeta();
-                    this.refresh();
+                this.editor = document.getElementById('main-text-area');
+                this.docSelect = document.getElementById('doc-select');
+                this.syncStatus = document.getElementById('sync-status');
+                
+                this.renderPalette();
+                this.bindEvents();
+                this.updateMeta();
+                this.refresh();
 
-                    this.showStatus("Loading Google Libs...");
-                    await this.waitForGoogleLibs();
-                    
-                    // GAPI Client Initialization
-                    await new Promise((resolve) => {
-                        window.gapi.load('client', async () => {
-                            try {
-                                await window.gapi.client.init({});
-                                await window.gapi.client.load('drive', 'v3');
-                                this.showStatus("GAPI Ready");
-                                resolve();
-                            } catch (e) {
-                                console.error("GAPI Init Error:", e);
-                                resolve(); 
-                            }
-                        });
+                // Initialize GAPI
+                try {
+                    window.gapi.load('client', async () => {
+                        await window.gapi.client.init({});
+                        await window.gapi.client.load('drive', 'v3');
+                        this.showStatus("GAPI Ready");
                     });
 
-                    // GIS Token Client Initialization
                     this.tokenClient = window.google.accounts.oauth2.initTokenClient({
                         client_id: CLIENT_ID,
                         scope: SCOPES,
                         callback: (resp) => this.handleAuthResponse(resp),
                     });
-                    
-                    this.showStatus("Ready");
-                } catch (err) {
-                    console.error("System Init Error:", err);
-                    this.showStatus("System Error");
+                } catch (e) {
+                    this.showStatus("Init Failure");
                 }
-            }
-
-            waitForGoogleLibs() {
-                return new Promise((resolve, reject) => {
-                    let count = 0;
-                    const check = () => {
-                        if (window.gapi && window.google && window.google.accounts) {
-                            resolve();
-                        } else if (count > 50) {
-                            reject(new Error("Timeout loading libs"));
-                        } else {
-                            count++;
-                            setTimeout(check, 200);
-                        }
-                    };
-                    check();
-                });
             }
 
             async handleAuthResponse(resp) {
                 if (resp.error) {
-                    this.showStatus("Auth Failed: " + resp.error);
+                    this.showStatus("Auth: " + resp.error);
                     return;
                 }
                 this.state.accessToken = resp.access_token;
@@ -257,7 +250,7 @@
                         const folder = await createRes.json();
                         this.state.folderId = folder.id;
                     }
-                } catch (e) { console.error("Drive folder init error", e); }
+                } catch (e) { this.showStatus("Folder Err"); }
             }
 
             async syncAllWithDrive() {
@@ -282,8 +275,8 @@
                         }
                     }
                     this.refresh();
-                    this.showStatus("Cloud Synced");
-                } catch (e) { this.showStatus("Sync Failed"); }
+                    this.showStatus("Drive Synced");
+                } catch (e) { this.showStatus("Sync Err"); }
             }
 
             async saveCurrentToDrive() {
@@ -313,7 +306,7 @@
                         this.state.fileIds[idx] = newFile.id;
                     }
                     this.showStatus("Cloud Saved");
-                } catch(e) { this.showStatus("Save Failed"); }
+                } catch(e) { this.showStatus("Save Err"); }
                 this.state.isSaving = false;
             }
 
@@ -351,11 +344,16 @@
                 
                 rules.forEach(rule => {
                     const [meta, body] = rule.split('->');
+                    if (!body) return;
                     const [target, colorPart] = body.split('%%');
-                    const colorId = colorPart.replace('C', '') || 'red';
-                    const pre = meta.split('[SEP]')[0] || "";
+                    if (!target) return; // Infinite Loop Guard
+                    
+                    const colorId = colorPart ? colorPart.replace('C', '') : 'red';
+                    const pre = meta ? meta.split('[SEP]')[0] : "";
                     const pattern = pre + target;
                     
+                    if (!pattern) return; // Double Guard
+
                     for (let i = 0; i < nodes.length; i++) {
                         if (nodes[i].type === 'text') {
                             const idx = nodes[i].text.indexOf(pattern);
@@ -399,9 +397,7 @@
                     if (m) {
                         const now = Date.now();
                         if (now - this.lastTapTime < 350 && this.lastTapTarget === m) {
-                            if(confirm("この虫食を削除しますか？")) {
-                                this.delRule(m.dataset.rule);
-                            }
+                            if(confirm("このマーカーを削除しますか？")) this.delRule(m.dataset.rule);
                             this.lastTapTime = 0;
                         } else {
                             m.classList.toggle('reveal');
@@ -430,11 +426,11 @@
                     dummy.select();
                     document.execCommand("copy");
                     document.body.removeChild(dummy);
-                    this.showStatus("Copied to Clip");
+                    this.showStatus("Copied");
                 };
 
                 document.getElementById('paste-btn').onclick = () => {
-                    const text = prompt("ここにテキストを貼り付けてください：");
+                    const text = prompt("テキストを入力：");
                     if (text !== null) {
                         this.editor.innerText = text;
                         this.state.documents[this.state.currentIndex].content = text;
@@ -465,7 +461,7 @@
                 this.docSelect.value = this.state.currentIndex;
             }
             updateCharCount() { document.getElementById('char-counter').textContent = `${this.editor.innerText.length}文字`; }
-            showStatus(msg) { this.syncStatus.textContent = msg; }
+            showStatus(msg) { if(this.syncStatus) this.syncStatus.textContent = msg; }
 
             renderPalette() {
                 const p = document.getElementById('marker-palette');
