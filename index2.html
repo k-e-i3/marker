@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v5.7.7</title>
+    <title>虫食 v5.7.8</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -110,9 +110,9 @@
             <div class="doc-controls">
                 <select id="doc-select" aria-label="文書選択"></select>
                 <button id="rename-doc-btn" class="icon-btn" title="名前変更">✎</button>
-                <button id="cloud-load-btn" class="icon-btn" title="同期読込" style="background:#2563eb;">☁</button>
-                <button id="manual-save-btn" class="icon-btn" title="同期保存" style="background:#059669;">💾</button>
-                <button id="sync-setup-btn" class="icon-btn" title="設定" style="background:#d97706;">🔑</button>
+                <button id="cloud-load-btn" class="icon-btn" title="強制同期読込" style="background:#2563eb;">☁</button>
+                <button id="manual-save-btn" class="icon-btn" title="強制同期保存" style="background:#059669;">💾</button>
+                <button id="sync-setup-btn" class="icon-btn" title="ID設定" style="background:#d97706;">🔑</button>
             </div>
             <div class="meta-info">
                 <div id="char-counter">0文字</div>
@@ -157,7 +157,7 @@
             <div id="sync-view">
                 <p style="font-size:13px; color:#475569;">同期用IDを入力（例: 513042042）:</p>
                 <input type="text" id="sync-id-input" placeholder="番号を入力">
-                <p style="font-size:11px; color:#64748b; margin-top: 8px;">※同じ数字を入力すれば同期・共有できます。</p>
+                <p style="font-size:11px; color:#64748b; margin-top: 8px;">※他のブラウザでも同じ数字を入力すれば共通の文章を同期できます。</p>
             </div>
             <div id="rename-view" style="display:none;">
                 <p style="font-size:13px; color:#475569;">文書名の変更:</p>
@@ -218,10 +218,11 @@
                 }
 
                 try {
-                    const app = initializeApp(fbConfig);
-                    auth = getAuth(app);
-                    db = getFirestore(app);
+                    const appInstance = initializeApp(fbConfig);
+                    auth = getAuth(appInstance);
+                    db = getFirestore(appInstance);
 
+                    // Rule 3: 認証を確実に待機
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
@@ -231,14 +232,18 @@
                     onAuthStateChanged(auth, async (u) => {
                         user = u;
                         if (u) {
+                            // IDがなければ暫定的にUIDを使用
                             if(!this.state.syncId) this.state.syncId = u.uid;
                             this.updateIdBadge();
-                            if (localStorage.getItem('user_numeric_id')) await this.loadCloud(false);
+                            // IDが保存されていれば自動で読み込み
+                            if (localStorage.getItem('user_numeric_id')) {
+                                await this.loadCloud(false);
+                            }
                             this.refresh();
                         }
                     });
                 } catch(e) {
-                    this.showStatus("Connect Error");
+                    this.showStatus("通信ブロック(Brave等)");
                     this.refresh();
                 }
             }
@@ -316,7 +321,7 @@
                 this.speechBtn.onclick = () => this.toggleSpeech();
                 document.getElementById('copy-btn').onclick = () => { 
                     navigator.clipboard.writeText(this.editor.innerText);
-                    this.showStatus("本文をコピーしました");
+                    this.showStatus("コピー完了");
                 };
                 document.getElementById('toggle-markers-cb').onchange = (e) => this.toggleVisibility(e.target.checked);
                 document.getElementById('modal-cancel-btn').onclick = () => {
@@ -358,7 +363,9 @@
                     const [meta, body] = rule.split('->');
                     const [target, colorPart] = body.split('%%');
                     const colorId = colorPart.startsWith('C') ? colorPart.substring(1) : 'red';
-                    const pre = meta.split('::')[1].split('[SEP]')[0] || "";
+                    const preSec = meta.split('::')[1];
+                    if(!preSec) return;
+                    const pre = preSec.split('[SEP]')[0] || "";
                     const pattern = pre + target;
                     for (let i = 0; i < nodes.length; i++) {
                         if (nodes[i].type === 'text') {
@@ -428,8 +435,12 @@
             }
 
             async saveCloud(manual = false) {
-                if (!db || !this.state.syncId || !user) return;
+                if (!db || !this.state.syncId || !user) {
+                    if(manual) this.showStatus("接続失敗:設定確認");
+                    return;
+                }
                 try {
+                    // Rule 1: artifacts/{appId}/public/data/{collectionName}
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
                     await setDoc(docRef, { ...this.state.appData, lastUpdated: new Date().toISOString() });
                     if(manual) this.showStatus("保存完了");
@@ -447,6 +458,8 @@
                             this.state.appData = data; this.refresh();
                             if(manual) this.showStatus("同期完了");
                         }
+                    } else if(manual) {
+                        this.showStatus("データなし");
                     }
                 } catch(e) { this.showStatus("読込失敗"); }
             }
@@ -461,8 +474,10 @@
 
             openSyncSetup() {
                 const m = document.getElementById('modal-overlay');
-                document.getElementById('rename-view').style.display = 'none';
-                document.getElementById('sync-view').style.display = 'block';
+                const view = document.getElementById('sync-view');
+                const rview = document.getElementById('rename-view');
+                rview.style.display = 'none';
+                view.style.display = 'block';
                 m.style.display = 'flex';
                 document.getElementById('sync-id-input').value = this.state.syncId || "";
                 document.getElementById('modal-ok-btn').onclick = async () => {
@@ -480,8 +495,10 @@
 
             openRename() {
                 const m = document.getElementById('modal-overlay');
-                document.getElementById('sync-view').style.display = 'none';
-                document.getElementById('rename-view').style.display = 'block';
+                const view = document.getElementById('sync-view');
+                const rview = document.getElementById('rename-view');
+                view.style.display = 'none';
+                rview.style.display = 'block';
                 m.style.display = 'flex';
                 const input = document.getElementById('rename-input');
                 input.value = this.state.appData.documents[this.state.currentDocIndex].title;
