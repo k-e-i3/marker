@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>虫食 v8.2.1</title>
+    <style>
+        /* デザインは v7.1.4 (ユーザー指定) を完全踏襲 */
+        :root {
+            /* ヘッダー：明るめのスレートグレー (#e2e8f0) */
+            --header-bg: #e2e8f0;
+            --header-text: #1e293b; 
+            
+            /* ベース */
+            --bg-base: #f1f5f9;       
+            --paper: #ffffff;         
+            --ink: #1e293b;           
+            --border: #cbd5e1;        
+            
+            /* ボタン類 */
+            --btn-bg: #f8fafc;
+            --btn-text: #475569;
+            --btn-hover: #e2e8f0;
+            
+            /* アクセント */
+            --accent: #0f766e;
+            --highlight: #fef08a;
+
+            /* マーカー：ソフト・ビビッド */
+            --m-red: #f87171; --m-orange: #fb923c; --m-yellow: #facc15;
+            --m-green: #4ade80; --m-blue: #60a5fa; --m-purple: #c084fc;
+            
+            /* 隠蔽時の設定 */
+            --marker-hidden-bg: #334155;
+            --marker-hidden-text: #334155;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body {
+            font-family: "Optima", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0; background-color: var(--bg-base); color: var(--ink);
+            overflow: hidden; height: 100vh; width: 100vw;
+        }
+        #app-root { display: flex; flex-direction: column; height: 100vh; }
+        
+        /* Header */
+        header {
+            background-color: var(--header-bg); border-bottom: 1px solid var(--border);
+            padding: 0 16px; height: 56px;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10;
+            color: var(--header-text);
+        }
+        .controls-group { display: flex; align-items: center; gap: 10px; flex-grow: 1; min-width: 0; }
+        
+        select#doc-select {
+            flex-grow: 1; height: 36px; border: 1px solid var(--border);
+            border-radius: 6px; font-size: 14px; padding: 0 10px; 
+            background: var(--paper); 
+            color: var(--ink); font-weight: 600; cursor: pointer;
+        }
+        select#doc-select option { background: white; color: black; }
+
+        .icon-btn {
+            height: 36px; width: 36px; display: flex; justify-content: center; align-items: center;
+            background: var(--paper); border: 1px solid var(--border);
+            border-radius: 6px; cursor: pointer; transition: 0.2s; color: var(--btn-text);
+            font-size: 18px;
+        }
+        .icon-btn:hover { background: var(--btn-hover); }
+        
+        /* 鉛筆ボタン調整 */
+        #rename-doc-btn { font-size: 20px; line-height: 1; }
+
+        .status-panel { text-align: right; min-width: 70px; margin-left: 10px; }
+        #char-counter { font-size: 11px; font-weight: bold; color: #475569; }
+        #sync-status { font-size: 9px; text-transform: uppercase; color: #94a3b8; }
+
+        /* Toolbar */
+        #toolbar {
+            background-color: var(--bg-base); padding: 10px 16px; 
+            border-bottom: 1px solid var(--border);
+            display: flex; flex-direction: column; gap: 10px; z-index: 9;
+        }
+        
+        .action-row { 
+            display: flex; align-items: center; gap: 10px; 
+            overflow-x: auto; scrollbar-width: none; 
+        }
+        
+        .text-btn {
+            background: var(--paper); border: 1px solid var(--border);
+            padding: 0 14px; height: 34px; border-radius: 6px; 
+            font-size: 12px; cursor: pointer; color: var(--btn-text); font-weight: 600;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex-shrink: 0; transition: 0.1s;
+        }
+        .text-btn:active { transform: translateY(1px); box-shadow: none; }
+        #speech-btn { color: var(--accent); border-color: var(--accent); background: #fff; } 
+
+        .marker-palette { 
+            display: flex; gap: 14px; padding: 4px 2px; overflow-x: auto; 
+            min-height: 40px; align-items: center;
+        }
+        
+        /* 色ボタン：フラット化（縁・影なし） */
+        .color-dot {
+            width: 32px; height: 32px; border-radius: 50%;
+            cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
+            border: none; box-shadow: none; 
+        }
+        .color-dot:active { transform: scale(0.9); }
+
+        /* Main Editor */
+        main { flex: 1; overflow: hidden; background: var(--paper); position: relative; }
+        #main-text-area {
+            width: 100%; height: 100%; padding: 30px 5%; font-size: 17px; line-height: 2.0;
+            overflow-y: auto; outline: none; white-space: pre-wrap; color: var(--ink);
+            max-width: 900px; margin: 0 auto;
+        }
+        #main-text-area:empty::before { content: "Google認証(G)を押して開始..."; color: #94a3b8; }
+        
+        /* Marker Logic */
+        .marker { 
+            cursor: pointer; border-radius: 3px; padding: 0 2px; margin: 0 1px;
+            transition: 0.1s; border-bottom: 2px solid rgba(0,0,0,0.1);
+        }
+        
+        /* 隠蔽時 */
+        .marker.masked[data-color="red"] { background: var(--m-red); color: var(--m-red); }
+        .marker.masked[data-color="orange"] { background: var(--m-orange); color: var(--m-orange); }
+        .marker.masked[data-color="yellow"] { background: var(--m-yellow); color: var(--m-yellow); }
+        .marker.masked[data-color="green"] { background: var(--m-green); color: var(--m-green); }
+        .marker.masked[data-color="blue"] { background: var(--m-blue); color: var(--m-blue); }
+        .marker.masked[data-color="purple"] { background: var(--m-purple); color: var(--m-purple); }
+        
+        /* 公開時 */
+        .marker.reveal { background: var(--highlight) !important; color: var(--ink) !important; border-bottom-color: transparent; font-weight: bold; }
+
+        /* Modal */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 100;
+            backdrop-filter: blur(2px);
+        }
+        .modal-content { 
+            background: var(--paper); width: 90%; max-width: 360px; padding: 24px; 
+            border: 1px solid var(--border); border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); 
+            display: flex; flex-direction: column; gap: 16px;
+        }
+        .modal-content h3 { margin: 0; font-size: 16px; color: var(--ink); }
+        #rename-input { 
+            width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; 
+            background: var(--bg-base); outline: none; font-size: 16px; color: var(--ink);
+        }
+    </style>
+</head>
+<body>
+    <div id="app-root">
+        <header>
+            <div class="controls-group">
+                <select id="doc-select"></select>
+                <button id="rename-doc-btn" class="icon-btn" title="名前変更">✏️</button>
+                <button id="auth-btn" class="icon-btn" title="Google認証">G</button>
+                <button id="sync-all-btn" class="icon-btn" title="同期">☁</button>
+                <button id="manual-save-btn" class="icon-btn" title="保存">💾</button>
+            </div>
+            <div class="status-panel">
+                <div id="char-counter">0 chars</div>
+                <div id="sync-status">Offline</div>
+            </div>
+        </header>
+
+        <div id="toolbar">
+            <div class="action-row">
+                <button class="text-btn" id="paste-btn">貼付</button>
+                <button class="text-btn" id="copy-btn">コピー</button>
+                <button class="text-btn" id="speech-btn">▶ 読上</button>
+                <select id="speech-rate-select" class="text-btn" style="min-width:60px;">
+                    <option value="0.8">0.8x</option>
+                    <option value="1.0" selected>1.0x</option>
+                    <option value="1.5">1.5x</option>
+                </select>
+                <label style="margin-left:auto; font-size: 12px; display:flex; align-items:center; gap:6px; color: var(--btn-text); font-weight: 600; cursor:pointer;">
+                    <input type="checkbox" id="toggle-markers-cb" checked style="transform:scale(1.2);"> 
+                    隠す
+                </label>
+            </div>
+            <!-- IDはJS側と一致させる -->
+            <div class="marker-palette" id="marker-palette"></div>
+        </div>
+
+        <main>
+            <div id="main-text-area" contenteditable="true" spellcheck="false"></div>
+        </main>
+    </div>
+
+    <div id="modal-overlay">
+        <div class="modal-content">
+            <h3>文書名を変更</h3>
+            <input type="text" id="rename-input">
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="text-btn" id="modal-ok-btn" style="background:var(--accent); color:white; border:none;">決定</button>
+                <button class="text-btn" id="modal-cancel-btn">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+
+    <script type="module">
+        const CLIENT_ID = '221098146252-psmtjk7chc54n35tpp4jgr3sgbipsemn.apps.googleusercontent.com';
+        const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+        const FOLDER_NAME = 'MarKer';
+
+        class MushikuiDriveApp {
+            constructor() {
+                const localData = localStorage.getItem('mushikui_drive_v6');
+                this.state = {
+                    documents: localData ? JSON.parse(localData) : Array.from({length:20}, (_,i)=>({title:`Doc ${i+1}`, content:'', rules:''})),
+                    currentIndex: 0,
+                    accessToken: null,
+                    folderId: null,
+                    fileIds: {}, 
+                    isSaving: false,
+                    isSpeaking: false,
+                    lastSpeechIndex: 0,
+                    fullTextForSpeech: ""
+                };
+                this.resumeTimer = null;
+                // v7.1.4の色設定
+                this.colors = [
+                    { id: 'red', code: '#f87171' }, { id: 'orange', code: '#fb923c' },
+                    { id: 'yellow', code: '#facc15' }, { id: 'green', code: '#4ade80' },
+                    { id: 'blue', code: '#60a5fa' }, { id: 'purple', code: '#c084fc' }
+                ];
+                this.tokenClient = null;
+                this.dom = {};
+            }
+
+            async init() {
+                try {
+                    this.dom.editor = document.getElementById('main-text-area');
+                    this.dom.select = document.getElementById('doc-select');
+                    this.dom.status = document.getElementById('sync-status');
+                    this.dom.counter = document.getElementById('char-counter');
+                    this.dom.mask = document.getElementById('toggle-markers-cb');
+                    this.dom.speechBtn = document.getElementById('speech-btn');
+
+                    this.renderPalette();
+                    this.bindEvents();
+                    this.updateMeta();
+                    this.refresh();
+
+                    await this.waitForGoogleLibs();
+                    
+                    window.gapi.load('client', async () => {
+                        try {
+                            await window.gapi.client.init({});
+                            await window.gapi.client.load('drive', 'v3');
+                            this.showStatus("GAPI Ready");
+                        } catch (e) { console.error("GAPI Error", e); }
+                    });
+
+                    this.tokenClient = window.google.accounts.oauth2.initTokenClient({
+                        client_id: CLIENT_ID, scope: SCOPES,
+                        callback: (resp) => this.handleAuthResponse(resp),
+                    });
+                    
+                    this.showStatus("Ready");
+                } catch (err) {
+                    console.error("System Init Error:", err);
+                    this.showStatus("Offline Mode");
+                }
+            }
+
+            waitForGoogleLibs() {
+                return new Promise((resolve, reject) => {
+                    let count = 0;
+                    const check = () => {
+                        if (window.gapi && window.google && window.google.accounts) {
+                            resolve();
+                        } else if (count > 50) {
+                            // プレビュー環境等でロードできない場合も考慮し、rejectせずにresolveしてオフラインモードへ移行させる手もあるが、
+                            // 元コードのロジックに従いエラーハンドリングに任せる
+                            reject(new Error("Timeout loading libs"));
+                        } else {
+                            count++;
+                            setTimeout(check, 200);
+                        }
+                    };
+                    check();
+                });
+            }
+
+            handleAuthResponse(r) {
+                if (r.error) {
+                    this.showStatus("Auth: " + r.error);
+                    return;
+                }
+                this.state.accessToken = r.access_token;
+                this.showStatus("Auth OK");
+                this.initDriveFolder().then(() => this.syncAllWithDrive());
+            }
+
+            async initDriveFolder() {
+                try {
+                    const q = `name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+                    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}`, {
+                        headers: { Authorization: `Bearer ${this.state.accessToken}` }
+                    });
+                    const data = await res.json();
+                    if (data.files?.length > 0) {
+                        this.state.folderId = data.files[0].id;
+                    } else {
+                        const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${this.state.accessToken}`, 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+                        });
+                        const folder = await createRes.json();
+                        this.state.folderId = folder.id;
+                    }
+                } catch (e) { console.error("Drive folder init error", e); }
+            }
+
+            async syncAllWithDrive() {
+                if (!this.state.folderId) return;
+                this.showStatus("Syncing...");
+                try {
+                    const q = `'${this.state.folderId}' in parents and trashed=false`;
+                    const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}`, {
+                        headers: { Authorization: `Bearer ${this.state.accessToken}` }
+                    });
+                    const data = await res.json();
+                    
+                    let count = 0;
+                    for (const file of data.files) {
+                        const match = file.name.match(/^(mushikui_)?doc_(\d+)\.json$/);
+                        if (match) {
+                            const i = parseInt(match[2]);
+                            this.state.fileIds[i] = file.id;
+                            const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media`, {
+                                headers: { Authorization: `Bearer ${this.state.accessToken}` }
+                            });
+                            this.state.documents[i] = await contentRes.json();
+                            count++;
+                        }
+                    }
+                    this.updateMeta();
+                    this.refresh();
+                    this.showStatus(`Synced (${count})`);
+                } catch (e) { this.showStatus("Sync Error"); }
+            }
+
+            async saveCurrentToDrive() {
+                if (!this.state.accessToken || !this.state.folderId || this.state.isSaving) return;
+                this.state.isSaving = true;
+                const idx = this.state.currentIndex;
+                const fileId = this.state.fileIds[idx];
+                const content = JSON.stringify(this.state.documents[idx]);
+                const fileName = `doc_${idx}.json`; // シンプルな名前で統一
+
+                try {
+                    if (fileId) {
+                        await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+                            method: 'PATCH',
+                            headers: { Authorization: `Bearer ${this.state.accessToken}`, 'Content-Type': 'application/json' },
+                            body: content
+                        });
+                    } else {
+                        const metadata = { name: fileName, parents: [this.state.folderId] };
+                        const boundary = '-------314159265358979323846';
+                        const body = `--${boundary}\nContent-Type: application/json; charset=UTF-8\n\n${JSON.stringify(metadata)}\n--${boundary}\nContent-Type: application/json\n\n${content}\n--${boundary}--`;
+                        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                            method: 'POST',
+                            headers: { Authorization: `Bearer ${this.state.accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+                            body: body
+                        });
+                        const newFile = await res.json();
+                        this.state.fileIds[idx] = newFile.id;
+                    }
+                    this.showStatus("Saved");
+                } catch(e) { this.showStatus("Save Err"); }
+                this.state.isSaving = false;
+            }
+
+            createMarker(colorId) {
+                const sel = window.getSelection();
+                if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+                const range = sel.getRangeAt(0);
+                const target = range.toString().trim();
+                if (!target) return;
+
+                const getCtx = (isPre) => {
+                    const r = document.createRange();
+                    if(isPre) { r.setStart(this.dom.editor, 0); r.setEnd(range.startContainer, range.startOffset); }
+                    else { r.setStart(range.endContainer, range.endOffset); r.setEnd(this.dom.editor, this.dom.editor.childNodes.length); }
+                    const txt = r.cloneContents().textContent || "";
+                    // 4文字判定
+                    return isPre ? [...txt].slice(-4).join('') : [...txt].slice(0, 4).join('');
+                };
+
+                const rule = `${getCtx(true)}[SEP]${getCtx(false)}->${target}%%C${colorId}`;
+                const doc = this.state.documents[this.state.currentIndex];
+                const rs = (doc.rules || '').split('\n').filter(Boolean);
+                rs.push(rule);
+                doc.rules = rs.join('\n');
+                this.refresh();
+                this.autoSave();
+                sel.removeAllRanges();
+            }
+
+            delRule(rule) {
+                const doc = this.state.documents[this.state.currentIndex];
+                doc.rules = (doc.rules || '').split('\n').filter(r => r !== rule).join('\n');
+                this.refresh();
+                this.autoSave();
+            }
+
+            refresh() {
+                const doc = this.state.documents[this.state.currentIndex];
+                const raw = doc.content || '';
+                this.dom.editor.innerHTML = '';
+                let nodes = [{ text: raw, type: 'text' }];
+                const rules = (doc.rules || '').split('\n').filter(r => r.includes('->'));
+                const isMasked = this.dom.mask.checked;
+
+                rules.forEach(rule => {
+                    const [meta, body] = rule.split('->');
+                    const [target, colorPart] = body.split('%%');
+                    const colorId = colorPart.replace('C', '') || 'red';
+                    const pre = meta.split('[SEP]')[0] || '';
+                    const pattern = pre + target;
+                    
+                    for (let i = 0; i < nodes.length; i++) {
+                        if (nodes[i].type === 'text') {
+                            const pos = nodes[i].text.indexOf(pattern);
+                            if (pos > -1) {
+                                const start = pos + pre.length;
+                                nodes.splice(i, 1, 
+                                    { text: nodes[i].text.substring(0, start), type: 'text' },
+                                    { text: target, type: 'marker', color: colorId, rule: rule },
+                                    { text: nodes[i].text.substring(start + target.length), type: 'text' }
+                                );
+                                break;
+                            }
+                        }
+                    }
+                });
+
+                nodes.forEach(n => {
+                    if (n.type === 'text') {
+                        n.text.split('\n').forEach((t, i, a) => {
+                            if(t) this.dom.editor.appendChild(document.createTextNode(t));
+                            if(i < a.length - 1) this.dom.editor.appendChild(document.createElement('br'));
+                        });
+                    } else {
+                        const span = document.createElement('span');
+                        span.className = `marker ${isMasked ? 'masked' : 'reveal'}`;
+                        span.dataset.color = n.color; 
+                        span.dataset.rule = n.rule;
+                        span.textContent = n.text; 
+                        this.dom.editor.appendChild(span);
+                    }
+                });
+                this.updateCharCount();
+            }
+
+            bindEvents() {
+                this.dom.editor.addEventListener('input', () => {
+                    this.state.documents[this.state.currentIndex].content = this.dom.editor.innerText;
+                    this.autoSave();
+                });
+                this.dom.editor.addEventListener('click', (e) => {
+                    const m = e.target.closest('.marker');
+                    if (m) {
+                        if(confirm("削除しますか？")) {
+                            this.delRule(m.dataset.rule);
+                        } else {
+                            // クリックでの開示ロジックが必要ならここに追加
+                            // m.classList.toggle('reveal');
+                        }
+                    }
+                });
+                this.dom.select.addEventListener('change', (e) => {
+                    this.state.currentIndex = parseInt(e.target.value);
+                    this.refresh();
+                });
+                document.getElementById('auth-btn').onclick = () => {
+                    if (this.tokenClient) this.tokenClient.requestAccessToken();
+                };
+                document.getElementById('sync-all-btn').onclick = () => this.syncAllWithDrive();
+                document.getElementById('manual-save-btn').onclick = () => this.saveCurrentToDrive();
+                
+                document.getElementById('rename-doc-btn').onclick = () => {
+                    document.getElementById('rename-input').value = this.state.documents[this.state.currentIndex].title;
+                    document.getElementById('modal-overlay').style.display = 'flex';
+                };
+                document.getElementById('modal-ok-btn').onclick = () => this.applyRename();
+                document.getElementById('modal-cancel-btn').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
+                
+                document.getElementById('copy-btn').onclick = () => {
+                    const dummy = document.createElement("textarea");
+                    document.body.appendChild(dummy);
+                    dummy.value = this.dom.editor.innerText;
+                    dummy.select();
+                    document.execCommand("copy");
+                    document.body.removeChild(dummy);
+                    this.showStatus("Copied");
+                };
+
+                document.getElementById('paste-btn').onclick = () => {
+                    const text = prompt("ここにテキストを貼り付けてください：");
+                    if (text !== null) {
+                        this.dom.editor.innerText = text;
+                        this.state.documents[this.state.currentIndex].content = text;
+                        this.autoSave();
+                        this.refresh();
+                    }
+                };
+                
+                document.getElementById('speech-btn').onclick = () => this.toggleSpeech();
+                this.dom.mask.onchange = () => this.refresh();
+            }
+
+            autoSave() {
+                localStorage.setItem('mushikui_drive_v6', JSON.stringify(this.state.documents));
+                this.updateCharCount();
+                clearTimeout(this.stimer);
+                this.stimer = setTimeout(() => this.saveCurrentToDrive(), 5000);
+            }
+
+            updateMeta() {
+                this.dom.select.innerHTML = this.state.documents.map((d,i) => `<option value="${i}">${d.title}</option>`).join('');
+                this.dom.select.value = this.state.currentIndex;
+            }
+            updateCharCount() { 
+                if (this.dom.counter) {
+                    this.dom.counter.textContent = `${this.dom.editor.innerText.length} chars`; 
+                }
+            }
+            showStatus(msg) { if(this.dom.status) this.dom.status.textContent = msg; }
+
+            renderPalette() {
+                const p = document.getElementById('marker-palette');
+                this.colors.forEach(c => {
+                    const btn = document.createElement('div');
+                    btn.className = 'color-dot'; 
+                    btn.style.backgroundColor = c.code;
+                    btn.addEventListener('pointerdown', (e) => {
+                        e.preventDefault();
+                        this.createMarker(c.id);
+                    });
+                    p.appendChild(btn);
+                });
+            }
+
+            openRename() {
+                const m = document.getElementById('modal-overlay');
+                const input = document.getElementById('rename-input');
+                input.value = this.state.documents[this.state.currentIndex].title;
+                m.style.display = 'flex';
+                input.focus();
+            }
+
+            applyRename() {
+                this.state.documents[this.state.currentIndex].title = document.getElementById('rename-input').value;
+                this.updateMeta();
+                this.autoSave();
+                document.getElementById('modal-overlay').style.display = 'none';
+            }
+
+            // Android読上: 10秒監視
+            toggleSpeech() {
+                if (this.isSpeaking) {
+                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+                    window.speechSynthesis.cancel();
+                    this.isSpeaking = false;
+                    this.dom.speechBtn.textContent = "▶ 読上";
+                    return;
+                }
+
+                const currentFullText = this.dom.editor.innerText;
+                if (!currentFullText.trim()) return;
+
+                if (this.state.fullTextForSpeech !== currentFullText) {
+                    this.state.lastSpeechIndex = 0;
+                    this.state.fullTextForSpeech = currentFullText;
+                }
+
+                let startIndex = this.state.lastSpeechIndex;
+                const sel = window.getSelection();
+                if (sel.rangeCount > 0 && this.dom.editor.contains(sel.anchorNode)) {
+                    if (!sel.isCollapsed) {
+                        const range = sel.getRangeAt(0);
+                        const preRange = document.createRange();
+                        preRange.setStart(this.dom.editor, 0);
+                        preRange.setEnd(range.startContainer, range.startOffset);
+                        startIndex = preRange.toString().length;
+                    } else {
+                        const range = document.createRange();
+                        range.setStart(this.dom.editor, 0);
+                        range.setEnd(sel.anchorNode, sel.anchorOffset);
+                        startIndex = range.toString().length;
+                    }
+                }
+
+                const textToSpeak = currentFullText.substring(startIndex);
+                
+                window.speechSynthesis.cancel();
+                window.speechSynthesis.resume(); 
+
+                const u = new SpeechSynthesisUtterance(textToSpeak);
+                u.lang = 'ja-JP';
+                u.rate = parseFloat(document.getElementById('speech-rate-select').value) || 1.0;
+
+                u.onboundary = (event) => {
+                    this.state.lastSpeechIndex = startIndex + event.charIndex;
+                };
+
+                u.onend = () => {
+                    this.isSpeaking = false;
+                    this.dom.speechBtn.textContent = "▶ 読上";
+                    this.state.lastSpeechIndex = 0;
+                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+                };
+                
+                u.onerror = () => {
+                   this.isSpeaking = false;
+                   this.dom.speechBtn.textContent = "▶ 読上";
+                   if (this.resumeTimer) clearInterval(this.resumeTimer);
+                };
+
+                window.speechSynthesis.speak(u);
+                this.isSpeaking = true;
+                this.dom.speechBtn.textContent = "⏹ 中断";
+
+                if (this.resumeTimer) clearInterval(this.resumeTimer);
+                this.resumeTimer = setInterval(() => {
+                    if (!this.isSpeaking) { clearInterval(this.resumeTimer); return; }
+                    if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
+                }, 10000); 
+            }
+        }
+
+        window.addEventListener('load', () => {
+            const app = new MushikuiDriveApp();
+            app.init();
+        });
+    </script>
+</body>
+</html>
+
