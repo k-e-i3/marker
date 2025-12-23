@@ -116,7 +116,7 @@
             </div>
             <div class="meta-info">
                 <div id="char-counter">0文字</div>
-                <div id="save-status">Connecting...</div>
+                <div id="save-status">ローカル保存</div>
             </div>
         </header>
 
@@ -169,17 +169,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
-
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'mushikui-tool-v5'; 
-
+    <script>
         class MushikuiToolV5 {
             constructor() {
                 const savedId = localStorage.getItem('user_numeric_id');
@@ -212,29 +202,7 @@
                 this.performMigration(); 
                 this.renderPalette();
                 this.bindEvents();
-
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await signInWithCustomToken(auth, __initial_auth_token);
-                        } else {
-                            await signInAnonymously(auth);
-                        }
-                    } catch (e) { 
-                        this.showStatus("通信制限中(Brave等)");
-                    }
-                };
-                await initAuth();
-
-                onAuthStateChanged(auth, async (u) => {
-                    this.state.user = u;
-                    if (u) {
-                        if(!this.state.syncId) this.state.syncId = u.uid;
-                        this.updateIdBadge();
-                        if (localStorage.getItem('user_numeric_id')) await this.loadCloud(false);
-                        this.refresh();
-                    }
-                });
+                this.refresh();
             }
 
             performMigration() {
@@ -256,7 +224,7 @@
 
             updateIdBadge() {
                 if(this.saveStatus) {
-                    this.saveStatus.textContent = `ID: ${this.state.syncId}`;
+                    this.saveStatus.textContent = this.state.syncId ? `ID: ${this.state.syncId}` : 'ローカル保存';
                 }
             }
 
@@ -268,8 +236,11 @@
                     const btn = document.createElement('div');
                     btn.className = 'palette-btn';
                     btn.style.backgroundColor = c.code;
-                    // iPad対応: pointerdown
                     btn.addEventListener('pointerdown', (e) => {
+                        e.preventDefault();
+                        this.createMarker(c.id);
+                    });
+                    btn.addEventListener('click', (e) => {
                         e.preventDefault();
                         this.createMarker(c.id);
                     });
@@ -302,13 +273,21 @@
                     this.refresh();
                 });
                 document.getElementById('rename-doc-btn').onclick = () => this.openRename();
-                document.getElementById('cloud-load-btn').onclick = () => this.loadCloud(true);
-                document.getElementById('manual-save-btn').onclick = () => this.saveCloud(true);
+                document.getElementById('cloud-load-btn').onclick = () => this.showStatus("クラウド機能は無効");
+                document.getElementById('manual-save-btn').onclick = () => this.showStatus("クラウド機能は無効");
                 document.getElementById('sync-setup-btn').onclick = () => this.openSyncSetup();
                 document.getElementById('manager-header').onclick = () => {
                     document.getElementById('manager-panel').classList.toggle('closed');
                 };
                 this.speechBtn.onclick = () => this.toggleSpeech();
+                document.getElementById('paste-btn').onclick = async () => {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        document.execCommand('insertText', false, text);
+                    } catch(e) {
+                        alert('クリップボードの読み取りに失敗しました');
+                    }
+                };
                 document.getElementById('copy-btn').onclick = () => { 
                     navigator.clipboard.writeText(this.editor.innerText);
                     this.showStatus("コピー完了");
@@ -321,7 +300,10 @@
 
             createMarker(colorId) {
                 const sel = window.getSelection();
-                if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+                if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+                    alert('テキストを選択してからマーカーボタンを押してください');
+                    return;
+                }
                 const range = sel.getRangeAt(0);
                 const target = range.toString().trim();
                 if (!target) return;
@@ -416,43 +398,18 @@
 
             autoPersist() {
                 this.persistLocal();
-                clearTimeout(this.cloudTimer);
-                this.cloudTimer = setTimeout(() => this.saveCloud(false), 8000);
             }
 
             persistLocal() {
                 localStorage.setItem('memorize_v5_stable', JSON.stringify(this.state.appData));
-            }
-
-            async saveCloud(manual = false) {
-                if (!this.state.syncId || !this.state.user) return;
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
-                    await setDoc(docRef, { ...this.state.appData, lastUpdated: new Date().toISOString() });
-                    if(manual) this.showStatus("保存完了");
-                } catch(e) { this.showStatus("保存失敗"); }
-            }
-
-            async loadCloud(manual = true) {
-                if (!this.state.syncId || !this.state.user) return;
-                try {
-                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
-                    const snap = await getDoc(docRef);
-                    if (snap.exists()) { 
-                        const data = snap.data();
-                        if(data && data.documents) {
-                            this.state.appData = data; this.refresh();
-                            if(manual) this.showStatus("同期完了");
-                        }
-                    }
-                } catch(e) { this.showStatus("読込失敗"); }
+                this.showStatus("保存完了");
             }
 
             showStatus(msg) {
                 if(this.saveStatus) {
-                    const originalId = this.state.syncId || "未設定";
+                    const originalText = this.state.syncId ? `ID: ${this.state.syncId}` : 'ローカル保存';
                     this.saveStatus.textContent = msg;
-                    setTimeout(() => { this.saveStatus.textContent = `ID: ${originalId}`; }, 3000);
+                    setTimeout(() => { this.saveStatus.textContent = originalText; }, 2000);
                 }
             }
 
@@ -462,14 +419,12 @@
                 document.getElementById('sync-view').style.display = 'block';
                 m.style.display = 'flex';
                 document.getElementById('sync-id-input').value = this.state.syncId || "";
-                document.getElementById('modal-ok-btn').onclick = async () => {
+                document.getElementById('modal-ok-btn').onclick = () => {
                     const nid = document.getElementById('sync-id-input').value.trim();
                     if(nid.length > 0) { 
                         this.state.syncId = nid; 
                         localStorage.setItem('user_numeric_id', nid);
                         this.updateIdBadge(); 
-                        if (this.state.user) await this.loadCloud(false); 
-                        this.refresh();
                     }
                     m.style.display = 'none';
                 };
@@ -554,4 +509,3 @@
     </script>
 </body>
 </html>
-
