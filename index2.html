@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v5.7.9</title>
+    <title>虫食 v5.8.0</title>
     <style>
         :root {
             --bg-color: #f8fafc; --main-bg: #ffffff;
@@ -222,7 +222,6 @@
                     auth = getAuth(appInstance);
                     db = getFirestore(appInstance);
 
-                    // Rule 3: 認証を優先。失敗時はオフライン扱いに
                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                         await signInWithCustomToken(auth, __initial_auth_token);
                     } else {
@@ -241,7 +240,8 @@
                         }
                     });
                 } catch(e) {
-                    this.showStatus("通信遮断(Shields等)");
+                    // net::ERR_BLOCKED_BY_CLIENT の場合、ここを通ります
+                    this.showStatus("通信遮断(Brave Shield等)");
                     this.refresh();
                 }
             }
@@ -266,7 +266,7 @@
             updateIdBadge() {
                 if(this.saveStatus) {
                     const idText = this.state.syncId || "未設定";
-                    this.saveStatus.textContent = `ID: ${idText.substring(0,10)}${idText.length > 10 ? '...' : ''}`;
+                    this.saveStatus.textContent = `ID: ${idText.substring(0,12)}`;
                 }
             }
 
@@ -310,22 +310,22 @@
                     this.state.lastSpeechIndex = 0; 
                     this.refresh();
                 });
-                document.getElementById('rename-doc-btn').addEventListener('click', () => this.openRename());
-                document.getElementById('cloud-load-btn').addEventListener('click', () => this.loadCloud(true));
-                document.getElementById('manual-save-btn').addEventListener('click', () => this.saveCloud(true));
-                document.getElementById('sync-setup-btn').addEventListener('click', () => this.openSyncSetup());
-                document.getElementById('manager-header').addEventListener('click', () => {
+                document.getElementById('rename-doc-btn').onclick = () => this.openRename();
+                document.getElementById('cloud-load-btn').onclick = () => this.loadCloud(true);
+                document.getElementById('manual-save-btn').onclick = () => this.saveCloud(true);
+                document.getElementById('sync-setup-btn').onclick = () => this.openSyncSetup();
+                document.getElementById('manager-header').onclick = () => {
                     document.getElementById('manager-panel').classList.toggle('closed');
-                });
-                this.speechBtn.addEventListener('click', () => this.toggleSpeech());
-                document.getElementById('copy-btn').addEventListener('click', () => { 
+                };
+                this.speechBtn.onclick = () => this.toggleSpeech();
+                document.getElementById('copy-btn').onclick = () => { 
                     navigator.clipboard.writeText(this.editor.innerText);
-                    this.showStatus("コピー完了");
-                });
-                document.getElementById('toggle-markers-cb').addEventListener('change', (e) => this.toggleVisibility(e.target.checked));
-                document.getElementById('modal-cancel-btn').addEventListener('click', () => {
+                    this.showStatus("本文コピー完了");
+                };
+                document.getElementById('toggle-markers-cb').onchange = (e) => this.toggleVisibility(e.target.checked);
+                document.getElementById('modal-cancel-btn').onclick = () => {
                     document.getElementById('modal-overlay').style.display = 'none';
-                });
+                };
             }
 
             createMarker(colorId) {
@@ -438,14 +438,14 @@
 
             async saveCloud(manual = false) {
                 if (!db || !this.state.syncId || !currentUser) {
-                    if(manual) this.showStatus("接続不良:Shields確認");
+                    if(manual) this.showStatus("接続遮断:Shields等を確認");
                     return;
                 }
                 try {
                     const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'user_storage', this.state.syncId);
                     await setDoc(docRef, { ...this.state.appData, lastUpdated: new Date().toISOString() });
                     if(manual) this.showStatus("保存完了");
-                } catch(e) { this.showStatus("接続失敗"); }
+                } catch(e) { this.showStatus("保存失敗"); }
             }
 
             async loadCloud(manual = true) {
@@ -460,25 +460,22 @@
                             if(manual) this.showStatus("同期完了");
                         }
                     } else if(manual) {
-                        this.showStatus("データなし");
+                        this.showStatus("クラウドにデータなし");
                     }
                 } catch(e) { this.showStatus("読込失敗"); }
             }
 
             showStatus(msg) {
                 if(this.saveStatus) {
-                    const currentId = this.state.syncId || "未設定";
                     this.saveStatus.textContent = msg;
-                    setTimeout(() => { this.updateIdBadge(); }, 3000);
+                    setTimeout(() => { this.updateIdBadge(); }, 4000);
                 }
             }
 
             openSyncSetup() {
                 const m = document.getElementById('modal-overlay');
-                const view = document.getElementById('sync-view');
-                const rview = document.getElementById('rename-view');
-                rview.style.display = 'none';
-                view.style.display = 'block';
+                document.getElementById('rename-view').style.display = 'none';
+                document.getElementById('sync-view').style.display = 'block';
                 m.style.display = 'flex';
                 document.getElementById('sync-id-input').value = this.state.syncId || "";
                 document.getElementById('modal-ok-btn').onclick = async () => {
@@ -496,10 +493,8 @@
 
             openRename() {
                 const m = document.getElementById('modal-overlay');
-                const view = document.getElementById('sync-view');
-                const rview = document.getElementById('rename-view');
-                view.style.display = 'none';
-                rview.style.display = 'block';
+                document.getElementById('sync-view').style.display = 'none';
+                document.getElementById('rename-view').style.display = 'block';
                 m.style.display = 'flex';
                 const input = document.getElementById('rename-input');
                 input.value = this.state.appData.documents[this.state.currentDocIndex].title;
