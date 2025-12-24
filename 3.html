@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v8.3.0</title>
+    <title>虫食 v8.3.1</title>
     <style>
         /* デザインは v7.1.4 (ユーザー指定) を完全踏襲 */
         :root {
@@ -476,8 +476,17 @@
                     this.state.documents[this.state.currentIndex].content = this.dom.editor.innerText;
                     this.autoSave();
                 });
+                
+                // Ctrl+V などの標準ペーストをジャックしてプレーンテキストのみ貼る
+                this.dom.editor.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const text = (e.clipboardData || window.clipboardData).getData('text');
+                    if (text) {
+                        document.execCommand('insertText', false, text);
+                    }
+                });
 
-                // --- マーカー操作イベント (修正箇所) ---
+                // --- マーカー操作イベント ---
                 
                 // 1. シングルクリック: トグル (めくる/隠す)
                 this.dom.editor.addEventListener('click', (e) => {
@@ -538,13 +547,26 @@
                     this.showStatus("Copied");
                 };
 
-                document.getElementById('paste-btn').onclick = () => {
-                    const text = prompt("ここにテキストを貼り付けてください：");
-                    if (text !== null) {
-                        this.dom.editor.innerText = text;
-                        this.state.documents[this.state.currentIndex].content = text;
-                        this.autoSave();
-                        this.refresh();
+                // 貼り付けボタン (改修済: クリップボードからダイレクトに貼る)
+                document.getElementById('paste-btn').onclick = async () => {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        if (text) {
+                            this.dom.editor.focus();
+                            // カーソル位置にプレーンテキストとして挿入
+                            const success = document.execCommand('insertText', false, text);
+                            if (!success) {
+                                // 失敗時(カーソル無し等)は全置換フォールバック
+                                this.dom.editor.innerText = text;
+                            }
+                            this.state.documents[this.state.currentIndex].content = this.dom.editor.innerText;
+                            this.autoSave();
+                            this.refresh();
+                            this.showStatus("Pasted");
+                        }
+                    } catch (err) {
+                        console.warn("Clipboard access denied:", err);
+                        alert("貼り付けに失敗しました。権限を許可するか、キーボード(Ctrl+V)をお使いください。");
                     }
                 };
                 
@@ -679,5 +701,3 @@
     </script>
 </body>
 </html>
-
-
