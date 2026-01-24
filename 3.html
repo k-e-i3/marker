@@ -233,6 +233,15 @@
                     lastSpeechIndex: 0,
                     fullTextForSpeech: ""
                 };
+
+　　// ▼ 追加: トークンの復元ロジック
+    const savedToken = localStorage.getItem('mushikui_token');
+    const expiry = localStorage.getItem('mushikui_token_exp');
+    if (savedToken && expiry && Date.now() < parseInt(expiry)) {
+        this.state.accessToken = savedToken;
+    }
+    // ▲ ここまで
+                
                 this.resumeTimer = null;
                 // v7.1.4の色設定
                 this.colors = [
@@ -278,6 +287,27 @@
                     console.error("System Init Error:", err);
                     this.showStatus("Offline Mode");
                 }
+
+// ▼ 追加: 復元されたトークンがある場合のUI更新
+    if (this.state.accessToken) {
+        this.showStatus("Restored");
+        // トークンがあるなら即Drive初期化へ
+        // 注: window.gapiのロードを待つ必要があるため、
+        // 下部の gapi.load コールバック内で syncAllWithDrive を呼ぶか、
+        // ここで簡易的にフラグを立てる等の制御がベストですが、
+        // 既存フローを生かすなら handleAuthResponse を擬似的に呼ぶ手もあります。
+    }
+    
+    // ... waitForGoogleLibs ...
+    
+    window.gapi.load('client', async () => {
+        // ... init ...
+        // ▼ 追加: トークン復元済みなら同期開始
+        if (this.state.accessToken) {
+            this.initDriveFolder().then(() => this.syncAllWithDrive());
+        }
+    });
+                
             }
 
             waitForGoogleLibs() {
@@ -297,16 +327,22 @@
                 });
             }
 
-            handleAuthResponse(r) {
-                if (r.error) {
-                    this.showStatus("Auth: " + r.error);
-                    return;
-                }
-                this.state.accessToken = r.access_token;
-                this.showStatus("Auth OK");
-                this.initDriveFolder().then(() => this.syncAllWithDrive());
-            }
+handleAuthResponse(r) {
+    if (r.error) {
+        this.showStatus("Auth: " + r.error);
+        return;
+    }
+    this.state.accessToken = r.access_token;
+    
+    // ▼ 追加: トークンを保存 (有効期限は秒単位なのでミリ秒に変換。余裕を見て5分早く無効扱いにする)
+    const expiresInMs = (r.expires_in - 300) * 1000; 
+    localStorage.setItem('mushikui_token', r.access_token);
+    localStorage.setItem('mushikui_token_exp', Date.now() + expiresInMs);
+    // ▲ ここまで
 
+    this.showStatus("Auth OK");
+    this.initDriveFolder().then(() => this.syncAllWithDrive());
+}
             async initDriveFolder() {
                 try {
                     const q = `name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
