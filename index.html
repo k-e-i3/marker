@@ -658,76 +658,64 @@ handleAuthResponse(r) {
             }
 
             // Android読上: 10秒監視
-            toggleSpeech() {
-                if (this.isSpeaking) {
-                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
-                    window.speechSynthesis.cancel();
-                    this.isSpeaking = false;
-                    this.dom.speechBtn.textContent = "▶ 読上";
-                    return;
-                }
+toggleSpeech() {
+    if (this.isSpeaking) {
+        if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
+        window.speechSynthesis.cancel();
+        this.isSpeaking = false;
+        this.dom.speechBtn.textContent = "? 読上";
+        return;
+    }
 
-                const currentFullText = this.dom.editor.innerText;
-                if (!currentFullText.trim()) return;
+    const currentFullText = this.dom.editor.innerText;
+    if (!currentFullText.trim()) return;
 
-                if (this.state.fullTextForSpeech !== currentFullText) {
-                    this.state.lastSpeechIndex = 0;
-                    this.state.fullTextForSpeech = currentFullText;
-                }
+    // カーソル位置の取得（既存ロジック流用）
+    let startIndex = 0;
+    const sel = window.getSelection();
+    if (sel.rangeCount > 0 && this.dom.editor.contains(sel.anchorNode)) {
+        const range = document.createRange();
+        range.setStart(this.dom.editor, 0);
+        range.setEnd(sel.anchorNode, sel.anchorOffset);
+        startIndex = range.toString().length;
+    }
 
-                let startIndex = this.state.lastSpeechIndex;
-                const sel = window.getSelection();
-                if (sel.rangeCount > 0 && this.dom.editor.contains(sel.anchorNode)) {
-                    if (!sel.isCollapsed) {
-                        const range = sel.getRangeAt(0);
-                        const preRange = document.createRange();
-                        preRange.setStart(this.dom.editor, 0);
-                        preRange.setEnd(range.startContainer, range.startOffset);
-                        startIndex = preRange.toString().length;
-                    } else {
-                        const range = document.createRange();
-                        range.setStart(this.dom.editor, 0);
-                        range.setEnd(sel.anchorNode, sel.anchorOffset);
-                        startIndex = range.toString().length;
-                    }
-                }
+    const textToSpeak = currentFullText.substring(startIndex);
 
-                const textToSpeak = currentFullText.substring(startIndex);
-                
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.resume(); 
+    // 句読点・改行で分割（Android対策：1チャンク≒100文字以内）
+    const chunks = textToSpeak
+        .split(/(?<=[。、！？\n])|(?<=.{80})/u)
+        .map(s => s.trim())
+        .filter(s => s.length > 0);
 
-                const u = new SpeechSynthesisUtterance(textToSpeak);
-                u.lang = 'ja-JP';
-                u.rate = parseFloat(document.getElementById('speech-rate-select').value) || 1.0;
+    if (chunks.length === 0) return;
 
-                u.onboundary = (event) => {
-                    this.state.lastSpeechIndex = startIndex + event.charIndex;
-                };
+    this.isSpeaking = true;
+    this.dom.speechBtn.textContent = "? 中断";
+    window.speechSynthesis.cancel();
 
-                u.onend = () => {
-                    this.isSpeaking = false;
-                    this.dom.speechBtn.textContent = "▶ 読上";
-                    this.state.lastSpeechIndex = 0;
-                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
-                };
-                
-                u.onerror = () => {
-                   this.isSpeaking = false;
-                   this.dom.speechBtn.textContent = "▶ 読上";
-                   if (this.resumeTimer) clearInterval(this.resumeTimer);
-                };
+    let chunkIndex = 0;
+    const rate = parseFloat(document.getElementById('speech-rate-select').value) || 1.0;
 
-                window.speechSynthesis.speak(u);
-                this.isSpeaking = true;
-                this.dom.speechBtn.textContent = "⏹ 中断";
+    const speakNext = () => {
+        if (!this.isSpeaking || chunkIndex >= chunks.length) {
+            this.isSpeaking = false;
+            this.dom.speechBtn.textContent = "? 読上";
+            return;
+        }
+        const u = new SpeechSynthesisUtterance(chunks[chunkIndex++]);
+        u.lang = 'ja-JP';
+        u.rate = rate;
+        u.onend = speakNext;
+        u.onerror = () => {
+            this.isSpeaking = false;
+            this.dom.speechBtn.textContent = "? 読上";
+        };
+        window.speechSynthesis.speak(u);
+    };
 
-                if (this.resumeTimer) clearInterval(this.resumeTimer);
-                this.resumeTimer = setInterval(() => {
-                    if (!this.isSpeaking) { clearInterval(this.resumeTimer); return; }
-                    if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
-                }, 10000); 
-            }
+    speakNext();
+}
         }
 
         window.addEventListener('load', () => {
