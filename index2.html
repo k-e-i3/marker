@@ -3,34 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>虫食 v8.2.1</title>
+    <title>虫食 v9.0.0</title>
     <style>
-        /* デザインは v7.1.4 (ユーザー指定) を完全踏襲 */
         :root {
-            /* ヘッダー：明るめのスレートグレー (#e2e8f0) */
             --header-bg: #e2e8f0;
             --header-text: #1e293b; 
-            
-            /* ベース */
-            --bg-base: #f1f5f9;       
-            --paper: #ffffff;         
-            --ink: #1e293b;           
+            --bg-base: #f1f5f9;        
+            --paper: #ffffff;          
+            --ink: #1e293b;            
             --border: #cbd5e1;        
-            
-            /* ボタン類 */
             --btn-bg: #f8fafc;
             --btn-text: #475569;
             --btn-hover: #e2e8f0;
-            
-            /* アクセント */
             --accent: #0f766e;
             --highlight: #fef08a;
 
-            /* マーカー：ソフト・ビビッド */
             --m-red: #f87171; --m-orange: #fb923c; --m-yellow: #facc15;
             --m-green: #4ade80; --m-blue: #60a5fa; --m-purple: #c084fc;
-            
-            /* 隠蔽時の設定 */
             --marker-hidden-bg: #334155;
             --marker-hidden-text: #334155;
         }
@@ -42,7 +31,6 @@
         }
         #app-root { display: flex; flex-direction: column; height: 100vh; }
         
-        /* Header */
         header {
             background-color: var(--header-bg); border-bottom: 1px solid var(--border);
             padding: 0 16px; height: 56px;
@@ -67,15 +55,12 @@
             font-size: 18px;
         }
         .icon-btn:hover { background: var(--btn-hover); }
-        
-        /* 鉛筆ボタン調整 */
         #rename-doc-btn { font-size: 20px; line-height: 1; }
 
         .status-panel { text-align: right; min-width: 70px; margin-left: 10px; }
         #char-counter { font-size: 11px; font-weight: bold; color: #475569; }
         #sync-status { font-size: 9px; text-transform: uppercase; color: #94a3b8; }
 
-        /* Toolbar */
         #toolbar {
             background-color: var(--bg-base); padding: 10px 16px; 
             border-bottom: 1px solid var(--border);
@@ -93,15 +78,16 @@
             font-size: 12px; cursor: pointer; color: var(--btn-text); font-weight: 600;
             box-shadow: 0 1px 2px rgba(0,0,0,0.05); flex-shrink: 0; transition: 0.1s;
         }
-        .text-btn:active { transform: translateY(1px); box-shadow: none; }
+        .text-btn:active:not(:disabled) { transform: translateY(1px); box-shadow: none; }
+        .text-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         #speech-btn { color: var(--accent); border-color: var(--accent); background: #fff; } 
+        #ai-btn { background: linear-gradient(135deg, #fef08a, #fde047); color: #854d0e; border-color: #facc15; }
 
         .marker-palette { 
             display: flex; gap: 14px; padding: 4px 2px; overflow-x: auto; 
             min-height: 40px; align-items: center;
         }
         
-        /* 色ボタン：フラット化（縁・影なし） */
         .color-dot {
             width: 32px; height: 32px; border-radius: 50%;
             cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
@@ -109,22 +95,20 @@
         }
         .color-dot:active { transform: scale(0.9); }
 
-        /* Main Editor */
         main { flex: 1; overflow: hidden; background: var(--paper); position: relative; }
         #main-text-area {
             width: 100%; height: 100%; padding: 30px 5%; font-size: 17px; line-height: 2.0;
             overflow-y: auto; outline: none; white-space: pre-wrap; color: var(--ink);
             max-width: 900px; margin: 0 auto;
         }
-        #main-text-area:empty::before { content: "Google認証(G)を押して開始..."; color: #94a3b8; }
+        #main-text-area:empty::before { content: "テキストを入力、または貼り付けてください..."; color: #94a3b8; }
         
-        /* Marker Logic */
         .marker { 
             cursor: pointer; border-radius: 3px; padding: 0 2px; margin: 0 1px;
             transition: 0.1s; border-bottom: 2px solid rgba(0,0,0,0.1);
+            user-select: none;
         }
         
-        /* 隠蔽時 */
         .marker.masked[data-color="red"] { background: var(--m-red); color: var(--m-red); }
         .marker.masked[data-color="orange"] { background: var(--m-orange); color: var(--m-orange); }
         .marker.masked[data-color="yellow"] { background: var(--m-yellow); color: var(--m-yellow); }
@@ -132,10 +116,13 @@
         .marker.masked[data-color="blue"] { background: var(--m-blue); color: var(--m-blue); }
         .marker.masked[data-color="purple"] { background: var(--m-purple); color: var(--m-purple); }
         
-        /* 公開時 */
-        .marker.reveal { background: var(--highlight) !important; color: var(--ink) !important; border-bottom-color: transparent; font-weight: bold; }
+        .marker.reveal { 
+            background: var(--highlight) !important; 
+            color: var(--ink) !important; 
+            border-bottom-color: transparent; 
+            font-weight: bold; 
+        }
 
-        /* Modal */
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 100;
@@ -172,10 +159,12 @@
 
         <div id="toolbar">
             <div class="action-row">
+                <button class="text-btn" id="ai-btn">✨ AIおまかせ</button>
                 <button class="text-btn" id="paste-btn">貼付</button>
                 <button class="text-btn" id="copy-btn">コピー</button>
                 <button class="text-btn" id="speech-btn">▶ 読上</button>
                 <select id="speech-rate-select" class="text-btn" style="min-width:60px;">
+                    <option value="0.4">0.4x</option>
                     <option value="0.8">0.8x</option>
                     <option value="1.0" selected>1.0x</option>
                     <option value="1.5">1.5x</option>
@@ -185,7 +174,6 @@
                     隠す
                 </label>
             </div>
-            <!-- IDはJS側と一致させる -->
             <div class="marker-palette" id="marker-palette"></div>
         </div>
 
@@ -223,12 +211,16 @@
                     folderId: null,
                     fileIds: {}, 
                     isSaving: false,
-                    isSpeaking: false,
-                    lastSpeechIndex: 0,
-                    fullTextForSpeech: ""
+                    isSpeaking: false
                 };
+
+                const savedToken = localStorage.getItem('mushikui_token');
+                const expiry = localStorage.getItem('mushikui_token_exp');
+                if (savedToken && expiry && Date.now() < parseInt(expiry)) {
+                    this.state.accessToken = savedToken;
+                }
+                
                 this.resumeTimer = null;
-                // v7.1.4の色設定
                 this.colors = [
                     { id: 'red', code: '#f87171' }, { id: 'orange', code: '#fb923c' },
                     { id: 'yellow', code: '#facc15' }, { id: 'green', code: '#4ade80' },
@@ -246,11 +238,12 @@
                     this.dom.counter = document.getElementById('char-counter');
                     this.dom.mask = document.getElementById('toggle-markers-cb');
                     this.dom.speechBtn = document.getElementById('speech-btn');
+                    this.dom.aiBtn = document.getElementById('ai-btn');
 
                     this.renderPalette();
                     this.bindEvents();
                     this.updateMeta();
-                    this.refresh();
+                    this.loadCurrentDoc();
 
                     await this.waitForGoogleLibs();
                     
@@ -259,6 +252,10 @@
                             await window.gapi.client.init({});
                             await window.gapi.client.load('drive', 'v3');
                             this.showStatus("GAPI Ready");
+                            if (this.state.accessToken) {
+                                this.showStatus("Restored");
+                                this.initDriveFolder().then(() => this.syncAllWithDrive());
+                            }
                         } catch (e) { console.error("GAPI Error", e); }
                     });
 
@@ -269,7 +266,7 @@
                     
                     this.showStatus("Ready");
                 } catch (err) {
-                    console.error("System Init Error:", err);
+                    console.error("Init Error:", err);
                     this.showStatus("Offline Mode");
                 }
             }
@@ -278,25 +275,20 @@
                 return new Promise((resolve, reject) => {
                     let count = 0;
                     const check = () => {
-                        if (window.gapi && window.google && window.google.accounts) {
-                            resolve();
-                        } else if (count > 50) {
-                            reject(new Error("Timeout loading libs"));
-                        } else {
-                            count++;
-                            setTimeout(check, 200);
-                        }
+                        if (window.gapi && window.google && window.google.accounts) resolve();
+                        else if (count > 50) reject(new Error("Timeout"));
+                        else { count++; setTimeout(check, 200); }
                     };
                     check();
                 });
             }
 
-            handleAuth(r) {
-                if (r.error) {
-                    this.showStatus("Auth: " + r.error);
-                    return;
-                }
+            handleAuthResponse(r) {
+                if (r.error) { this.showStatus("Auth: " + r.error); return; }
                 this.state.accessToken = r.access_token;
+                const expiresInMs = (r.expires_in - 300) * 1000; 
+                localStorage.setItem('mushikui_token', r.access_token);
+                localStorage.setItem('mushikui_token_exp', Date.now() + expiresInMs);
                 this.showStatus("Auth OK");
                 this.initDriveFolder().then(() => this.syncAllWithDrive());
             }
@@ -319,7 +311,7 @@
                         const folder = await createRes.json();
                         this.state.folderId = folder.id;
                     }
-                } catch (e) { console.error("Drive folder init error", e); }
+                } catch (e) { console.error(e); }
             }
 
             async syncAllWithDrive() {
@@ -346,7 +338,7 @@
                         }
                     }
                     this.updateMeta();
-                    this.refresh();
+                    this.loadCurrentDoc();
                     this.showStatus(`Synced (${count})`);
                 } catch (e) { this.showStatus("Sync Error"); }
             }
@@ -357,7 +349,7 @@
                 const idx = this.state.currentIndex;
                 const fileId = this.state.fileIds[idx];
                 const content = JSON.stringify(this.state.documents[idx]);
-                const fileName = `doc_${idx}.json`; // シンプルな名前で統一
+                const fileName = `doc_${idx}.json`;
 
                 try {
                     if (fileId) {
@@ -383,47 +375,25 @@
                 this.state.isSaving = false;
             }
 
-            createMarker(colorId) {
-                const sel = window.getSelection();
-                if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
-                const range = sel.getRangeAt(0);
-                const target = range.toString().trim();
-                if (!target) return;
-
-                const getCtx = (isPre) => {
-                    const r = document.createRange();
-                    if(isPre) { r.setStart(this.dom.editor, 0); r.setEnd(range.startContainer, range.startOffset); }
-                    else { r.setStart(range.endContainer, range.endOffset); r.setEnd(this.dom.editor, this.dom.editor.childNodes.length); }
-                    const txt = r.cloneContents().textContent || "";
-                    // 4文字判定
-                    return isPre ? [...txt].slice(-4).join('') : [...txt].slice(0, 4).join('');
-                };
-
-                const rule = `${getCtx(true)}[SEP]${getCtx(false)}->${target}%%C${colorId}`;
+            // 新規: HTMLベースの読み込みと旧データのマイグレーション
+            loadCurrentDoc() {
                 const doc = this.state.documents[this.state.currentIndex];
-                const rs = (doc.rules || '').split('\n').filter(Boolean);
-                rs.push(rule);
-                doc.rules = rs.join('\n');
-                this.refresh();
-                this.autoSave();
-                sel.removeAllRanges();
+                
+                // v8以前のルールベースデータが存在する場合、一度だけHTMLに変換（マイグレーション）
+                if (doc.rules && doc.rules.trim().length > 0) {
+                    this.migrateOldRulesToHTML(doc);
+                } else {
+                    this.dom.editor.innerHTML = doc.content || '';
+                }
+                this.applyMaskState();
+                this.updateCharCount();
             }
 
-            delRule(rule) {
-                const doc = this.state.documents[this.state.currentIndex];
-                doc.rules = (doc.rules || '').split('\n').filter(r => r !== rule).join('\n');
-                this.refresh();
-                this.autoSave();
-            }
-
-            refresh() {
-                const doc = this.state.documents[this.state.currentIndex];
+            migrateOldRulesToHTML(doc) {
                 const raw = doc.content || '';
-                this.dom.editor.innerHTML = '';
                 let nodes = [{ text: raw, type: 'text' }];
-                const rules = (doc.rules || '').split('\n').filter(r => r.includes('->'));
-                const isMasked = this.dom.mask.checked;
-
+                const rules = doc.rules.split('\n').filter(r => r.includes('->'));
+                
                 rules.forEach(rule => {
                     const [meta, body] = rule.split('->');
                     const [target, colorPart] = body.split('%%');
@@ -438,7 +408,7 @@
                                 const start = pos + pre.length;
                                 nodes.splice(i, 1, 
                                     { text: nodes[i].text.substring(0, start), type: 'text' },
-                                    { text: target, type: 'marker', color: colorId, rule: rule },
+                                    { text: target, type: 'marker', color: colorId },
                                     { text: nodes[i].text.substring(start + target.length), type: 'text' }
                                 );
                                 break;
@@ -447,6 +417,7 @@
                     }
                 });
 
+                this.dom.editor.innerHTML = '';
                 nodes.forEach(n => {
                     if (n.type === 'text') {
                         n.text.split('\n').forEach((t, i, a) => {
@@ -455,35 +426,180 @@
                         });
                     } else {
                         const span = document.createElement('span');
-                        span.className = `marker ${isMasked ? 'masked' : 'reveal'}`;
+                        span.className = 'marker';
                         span.dataset.color = n.color; 
-                        span.dataset.rule = n.rule;
                         span.textContent = n.text; 
                         this.dom.editor.appendChild(span);
                     }
                 });
-                this.updateCharCount();
+
+                // 変換結果を保存し、古いルールを消去
+                doc.content = this.dom.editor.innerHTML;
+                doc.rules = '';
+                this.autoSave();
+            }
+
+            applyMaskState() {
+                const isMasked = this.dom.mask.checked;
+                this.dom.editor.querySelectorAll('.marker').forEach(m => {
+                    if (isMasked) {
+                        m.classList.add('masked');
+                        m.classList.remove('reveal');
+                    } else {
+                        m.classList.remove('masked');
+                        m.classList.add('reveal');
+                    }
+                });
+            }
+
+            // 新規: 選択範囲を直接HTMLのspanで囲む
+            createMarker(colorId) {
+                const sel = window.getSelection();
+                if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+                
+                const range = sel.getRangeAt(0);
+                if (range.toString().trim() === '') return;
+
+                const span = document.createElement('span');
+                span.className = `marker ${this.dom.mask.checked ? 'masked' : 'reveal'}`;
+                span.dataset.color = colorId;
+
+                try {
+                    range.surroundContents(span);
+                } catch(e) {
+                    // 複数要素をまたぐ場合のフォールバック
+                    span.appendChild(range.extractContents());
+                    range.insertNode(span);
+                }
+                
+                sel.removeAllRanges();
+                this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
+                this.autoSave();
+            }
+
+            // 新規: AIによる自動マーキング
+            async performAutoMarking() {
+                const text = this.dom.editor.innerText;
+                if (!text.trim()) return;
+
+                this.dom.aiBtn.textContent = "✨ 抽出中...";
+                this.dom.aiBtn.disabled = true;
+
+                try {
+                    const apiKey = ""; // Gemini APIキーはCanvas環境により自動注入
+                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    const payload = {
+                        contents: [{ parts: [{ text: text }] }],
+                        systemInstruction: { parts: [{ text: "建設コンサルタントや技術士試験の観点から、入力された文章内の重要な専門用語やキーワードを抽出してください。動詞や一般的な接続詞は除外してください。複合語は分割せず一つの単語として抽出してください。" }] },
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: { keywords: { type: "ARRAY", items: { type: "STRING" } } }
+                            }
+                        }
+                    };
+
+                    let keywords = [];
+                    const delays = [1000, 2000, 4000, 8000, 16000];
+                    for (let i = 0; i < 6; i++) {
+                        try {
+                            const res = await fetch(url, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify(payload)
+                            });
+                            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                            const data = await res.json();
+                            const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                            if (resultText) keywords = JSON.parse(resultText).keywords || [];
+                            break;
+                        } catch (e) {
+                            if (i === 5) throw e;
+                            await new Promise(r => setTimeout(r, delays[i]));
+                        }
+                    }
+
+                    if (keywords.length > 0) {
+                        // 長い単語から先に処理して、部分一致の誤爆を防ぐ
+                        keywords.sort((a, b) => b.length - a.length);
+                        this.highlightKeywordsInDOM(this.dom.editor, keywords);
+                        this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
+                        this.autoSave();
+                        this.showStatus("AI Marked");
+                    }
+                } catch (e) {
+                    console.error("AI Error:", e);
+                    alert("キーワードの抽出に失敗しました。");
+                } finally {
+                    this.dom.aiBtn.textContent = "✨ AIおまかせ";
+                    this.dom.aiBtn.disabled = false;
+                }
+            }
+
+            highlightKeywordsInDOM(node, keywords) {
+                if (node.nodeType === Node.TEXT_NODE) {
+                    let text = node.nodeValue;
+                    for (const kw of keywords) {
+                        if (!kw || kw.length < 2) continue; // 1文字の誤爆を防ぐ
+                        const idx = text.indexOf(kw);
+                        if (idx !== -1 && node.parentNode && !node.parentNode.classList.contains('marker')) {
+                            const matchNode = node.splitText(idx);
+                            matchNode.splitText(kw.length);
+                            
+                            const span = document.createElement('span');
+                            span.className = `marker ${this.dom.mask.checked ? 'masked' : 'reveal'}`;
+                            span.dataset.color = 'yellow'; // AI抽出は目立つ黄色に
+                            span.textContent = kw;
+                            
+                            node.parentNode.replaceChild(span, matchNode);
+                            
+                            // 残りのテキストノードを再帰処理
+                            this.highlightKeywordsInDOM(span.nextSibling, keywords);
+                            break; 
+                        }
+                    }
+                } else if (node.nodeType === Node.ELEMENT_NODE && !node.classList.contains('marker')) {
+                    Array.from(node.childNodes).forEach(child => this.highlightKeywordsInDOM(child, keywords));
+                }
             }
 
             bindEvents() {
                 this.dom.editor.addEventListener('input', () => {
-                    this.state.documents[this.state.currentIndex].content = this.dom.editor.innerText;
+                    this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
                     this.autoSave();
                 });
+                
+                this.dom.editor.addEventListener('paste', (e) => {
+                    e.preventDefault();
+                    const text = (e.clipboardData || window.clipboardData).getData('text');
+                    if (text) document.execCommand('insertText', false, text);
+                });
+
                 this.dom.editor.addEventListener('click', (e) => {
                     const m = e.target.closest('.marker');
+                    if (m) m.classList.toggle('reveal');
+                });
+
+                // 右クリックまたはダブルクリックでマーカーを削除（テキストに戻す）
+                const removeMarker = (e) => {
+                    const m = e.target.closest('.marker');
                     if (m) {
-                        if(confirm("削除しますか？")) {
-                            this.delRule(m.dataset.rule);
-                        } else {
-                            // クリックでの開示ロジックが必要ならここに追加
-                            // m.classList.toggle('reveal');
+                        e.preventDefault();
+                        if(confirm("マーカーを削除しますか？")) {
+                            const textNode = document.createTextNode(m.textContent);
+                            m.replaceWith(textNode);
+                            this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
+                            this.autoSave();
                         }
                     }
-                });
+                };
+                this.dom.editor.addEventListener('contextmenu', removeMarker);
+                this.dom.editor.addEventListener('dblclick', removeMarker);
+                
                 this.dom.select.addEventListener('change', (e) => {
                     this.state.currentIndex = parseInt(e.target.value);
-                    this.refresh();
+                    this.loadCurrentDoc();
                 });
                 document.getElementById('auth-btn').onclick = () => {
                     if (this.tokenClient) this.tokenClient.requestAccessToken();
@@ -508,18 +624,27 @@
                     this.showStatus("Copied");
                 };
 
-                document.getElementById('paste-btn').onclick = () => {
-                    const text = prompt("ここにテキストを貼り付けてください：");
-                    if (text !== null) {
-                        this.dom.editor.innerText = text;
-                        this.state.documents[this.state.currentIndex].content = text;
-                        this.autoSave();
-                        this.refresh();
+                document.getElementById('paste-btn').onclick = async () => {
+                    try {
+                        const text = await navigator.clipboard.readText();
+                        if (text) {
+                            this.dom.editor.focus();
+                            if (!document.execCommand('insertText', false, text)) {
+                                this.dom.editor.innerText = text;
+                            }
+                            this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
+                            this.autoSave();
+                            this.updateCharCount();
+                            this.showStatus("Pasted");
+                        }
+                    } catch (err) {
+                        alert("権限を許可するか、キーボード(Ctrl+V)をお使いください。");
                     }
                 };
                 
                 document.getElementById('speech-btn').onclick = () => this.toggleSpeech();
-                this.dom.mask.onchange = () => this.refresh();
+                this.dom.aiBtn.onclick = () => this.performAutoMarking();
+                this.dom.mask.onchange = () => this.applyMaskState();
             }
 
             autoSave() {
@@ -534,9 +659,7 @@
                 this.dom.select.value = this.state.currentIndex;
             }
             updateCharCount() { 
-                if (this.dom.counter) {
-                    this.dom.counter.textContent = `${this.dom.editor.innerText.length} chars`; 
-                }
+                if (this.dom.counter) this.dom.counter.textContent = `${this.dom.editor.innerText.length} chars`; 
             }
             showStatus(msg) { if(this.dom.status) this.dom.status.textContent = msg; }
 
@@ -554,14 +677,6 @@
                 });
             }
 
-            openRename() {
-                const m = document.getElementById('modal-overlay');
-                const input = document.getElementById('rename-input');
-                input.value = this.state.documents[this.state.currentIndex].title;
-                m.style.display = 'flex';
-                input.focus();
-            }
-
             applyRename() {
                 this.state.documents[this.state.currentIndex].title = document.getElementById('rename-input').value;
                 this.updateMeta();
@@ -569,7 +684,6 @@
                 document.getElementById('modal-overlay').style.display = 'none';
             }
 
-            // Android読上: 10秒監視
             toggleSpeech() {
                 if (this.isSpeaking) {
                     if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
@@ -582,63 +696,44 @@
                 const currentFullText = this.dom.editor.innerText;
                 if (!currentFullText.trim()) return;
 
-                if (this.state.fullTextForSpeech !== currentFullText) {
-                    this.state.lastSpeechIndex = 0;
-                    this.state.fullTextForSpeech = currentFullText;
-                }
-
-                let startIndex = this.state.lastSpeechIndex;
+                let startIndex = 0;
                 const sel = window.getSelection();
                 if (sel.rangeCount > 0 && this.dom.editor.contains(sel.anchorNode)) {
-                    if (!sel.isCollapsed) {
-                        const range = sel.getRangeAt(0);
-                        const preRange = document.createRange();
-                        preRange.setStart(this.dom.editor, 0);
-                        preRange.setEnd(range.startContainer, range.startOffset);
-                        startIndex = preRange.toString().length;
-                    } else {
-                        const range = document.createRange();
-                        range.setStart(this.dom.editor, 0);
-                        range.setEnd(sel.anchorNode, sel.anchorOffset);
-                        startIndex = range.toString().length;
-                    }
+                    const range = document.createRange();
+                    range.setStart(this.dom.editor, 0);
+                    range.setEnd(sel.anchorNode, sel.anchorOffset);
+                    startIndex = range.toString().length;
                 }
 
                 const textToSpeak = currentFullText.substring(startIndex);
-                
-                window.speechSynthesis.cancel();
-                window.speechSynthesis.resume(); 
+                const chunks = textToSpeak.split(/(?<=[。、！？\n])|(?<=.{80})/u).map(s => s.trim()).filter(s => s.length > 0);
+                if (chunks.length === 0) return;
 
-                const u = new SpeechSynthesisUtterance(textToSpeak);
-                u.lang = 'ja-JP';
-                u.rate = parseFloat(document.getElementById('speech-rate-select').value) || 1.0;
-
-                u.onboundary = (event) => {
-                    this.state.lastSpeechIndex = startIndex + event.charIndex;
-                };
-
-                u.onend = () => {
-                    this.isSpeaking = false;
-                    this.dom.speechBtn.textContent = "▶ 読上";
-                    this.state.lastSpeechIndex = 0;
-                    if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
-                };
-                
-                u.onerror = () => {
-                   this.isSpeaking = false;
-                   this.dom.speechBtn.textContent = "▶ 読上";
-                   if (this.resumeTimer) clearInterval(this.resumeTimer);
-                };
-
-                window.speechSynthesis.speak(u);
                 this.isSpeaking = true;
-                this.dom.speechBtn.textContent = "⏹ 中断";
+                this.dom.speechBtn.textContent = "■ 中断";
+                window.speechSynthesis.cancel();
 
-                if (this.resumeTimer) clearInterval(this.resumeTimer);
-                this.resumeTimer = setInterval(() => {
-                    if (!this.isSpeaking) { clearInterval(this.resumeTimer); return; }
-                    if (window.speechSynthesis.speaking) window.speechSynthesis.resume();
-                }, 10000); 
+                let chunkIndex = 0;
+                const rate = parseFloat(document.getElementById('speech-rate-select').value) || 1.0;
+
+                const speakNext = () => {
+                    if (!this.isSpeaking || chunkIndex >= chunks.length) {
+                        this.isSpeaking = false;
+                        this.dom.speechBtn.textContent = "▶ 読上";
+                        return;
+                    }
+                    const u = new SpeechSynthesisUtterance(chunks[chunkIndex++]);
+                    u.lang = 'ja-JP';
+                    u.rate = rate;
+                    u.onend = speakNext;
+                    u.onerror = () => {
+                        this.isSpeaking = false;
+                        this.dom.speechBtn.textContent = "▶ 読上";
+                    };
+                    window.speechSynthesis.speak(u);
+                };
+
+                speakNext();
             }
         }
 
