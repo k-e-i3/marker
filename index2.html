@@ -20,8 +20,6 @@
 
             --m-red: #f87171; --m-orange: #fb923c; --m-yellow: #facc15;
             --m-green: #4ade80; --m-blue: #60a5fa; --m-purple: #c084fc;
-            --marker-hidden-bg: #334155;
-            --marker-hidden-text: #334155;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body {
@@ -66,11 +64,7 @@
             border-bottom: 1px solid var(--border);
             display: flex; flex-direction: column; gap: 10px; z-index: 9;
         }
-        
-        .action-row { 
-            display: flex; align-items: center; gap: 10px; 
-            overflow-x: auto; scrollbar-width: none; 
-        }
+        .action-row { display: flex; align-items: center; gap: 10px; overflow-x: auto; scrollbar-width: none; }
         
         .text-btn {
             background: var(--paper); border: 1px solid var(--border);
@@ -83,16 +77,8 @@
         #speech-btn { color: var(--accent); border-color: var(--accent); background: #fff; } 
         #ai-btn { background: linear-gradient(135deg, #fef08a, #fde047); color: #854d0e; border-color: #facc15; }
 
-        .marker-palette { 
-            display: flex; gap: 14px; padding: 4px 2px; overflow-x: auto; 
-            min-height: 40px; align-items: center;
-        }
-        
-        .color-dot {
-            width: 32px; height: 32px; border-radius: 50%;
-            cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
-            border: none; box-shadow: none; 
-        }
+        .marker-palette { display: flex; gap: 14px; padding: 4px 2px; overflow-x: auto; min-height: 40px; align-items: center; }
+        .color-dot { width: 32px; height: 32px; border-radius: 50%; cursor: pointer; flex-shrink: 0; transition: transform 0.1s; border: none; box-shadow: none; }
         .color-dot:active { transform: scale(0.9); }
 
         main { flex: 1; overflow: hidden; background: var(--paper); position: relative; }
@@ -102,11 +88,7 @@
         }
         #main-text-area:empty::before { content: "テキストを入力、または貼り付けてください..."; color: #94a3b8; }
         
-        .marker { 
-            cursor: pointer; border-radius: 3px; padding: 0 2px; margin: 0 1px;
-            transition: 0.1s; border-bottom: 2px solid rgba(0,0,0,0.1);
-            user-select: none;
-        }
+        .marker { cursor: pointer; border-radius: 3px; padding: 0 2px; margin: 0 1px; transition: 0.1s; border-bottom: 2px solid rgba(0,0,0,0.1); user-select: none; }
         
         .marker.masked[data-color="red"] { background: var(--m-red); color: var(--m-red); }
         .marker.masked[data-color="orange"] { background: var(--m-orange); color: var(--m-orange); }
@@ -115,12 +97,7 @@
         .marker.masked[data-color="blue"] { background: var(--m-blue); color: var(--m-blue); }
         .marker.masked[data-color="purple"] { background: var(--m-purple); color: var(--m-purple); }
         
-        .marker.reveal { 
-            background: var(--highlight) !important; 
-            color: var(--ink) !important; 
-            border-bottom-color: transparent; 
-            font-weight: bold; 
-        }
+        .marker.reveal { background: var(--highlight) !important; color: var(--ink) !important; border-bottom-color: transparent; font-weight: bold; }
 
         #modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -134,7 +111,7 @@
             display: flex; flex-direction: column; gap: 16px;
         }
         .modal-content h3 { margin: 0; font-size: 16px; color: var(--ink); }
-        #rename-input { 
+        #rename-input, #api-key-input { 
             width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; 
             background: var(--bg-base); outline: none; font-size: 16px; color: var(--ink);
         }
@@ -170,8 +147,7 @@
                     <option value="1.5">1.5x</option>
                 </select>
                 <label style="margin-left:auto; font-size: 12px; display:flex; align-items:center; gap:6px; color: var(--btn-text); font-weight: 600; cursor:pointer;">
-                    <input type="checkbox" id="toggle-markers-cb" checked style="transform:scale(1.2);"> 
-                    隠す
+                    <input type="checkbox" id="toggle-markers-cb" checked style="transform:scale(1.2);"> 隠す
                 </label>
             </div>
             <div class="marker-palette" id="marker-palette"></div>
@@ -194,7 +170,7 @@
         <div class="modal-content" id="settings-modal-content" style="display: none;">
             <h3>設定 (AI API Key)</h3>
             <p style="font-size:12px; margin:0;">Groq APIキーを入力してください。<br>※キーはお使いのブラウザにのみ保存されます。</p>
-            <input type="password" id="api-key-input" placeholder="gsk_..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); outline: none; font-size: 16px; color: var(--ink);">
+            <input type="password" id="api-key-input" placeholder="gsk_...">
             <div style="display:flex; justify-content:flex-end; gap:10px;">
                 <button class="text-btn" id="settings-ok-btn" style="background:var(--accent); color:white; border:none;">保存</button>
                 <button class="text-btn" id="settings-cancel-btn">取消</button>
@@ -487,7 +463,10 @@
 
                 const apiKey = localStorage.getItem('groq_api_key');
                 if (!apiKey) {
-                    alert("右上の設定ボタン(⚙️)からGroq APIキーを設定してください。");
+                    document.getElementById('rename-modal-content').style.display = 'none';
+                    document.getElementById('settings-modal-content').style.display = 'flex';
+                    document.getElementById('modal-overlay').style.display = 'flex';
+                    this.showStatus("Key required");
                     return;
                 }
 
@@ -499,7 +478,7 @@
                     const payload = {
                         model: "llama-3.3-70b-versatile",
                         messages: [
-                            { role: "system", content: "あなたは技術士試験の専門家です。入力された文章から、建設コンサルタントや技術士試験の観点から重要な専門用語やキーワードを抽出してください。一般的な動詞や接続詞は除外します。複合語は分割せず一つの単語としてください。必ず以下のJSONフォーマットのみを出力してください。\n\`\`\`json\n{\"keywords\": [\"単語1\", \"単語2\"]}\n\`\`\`" },
+                            { role: "system", content: "あなたは技術士試験の専門家です。入力された文章から、建設コンサルタントや技術士試験の観点から重要な専門用語、課題、対策、インフラ施設名などを可能な限り多く（目安20個以上）抽出してください。\n抽出する用語は、国土交通白書や省庁で使われる一般的な用語を優先し、造語や不自然な複合語は避けてください。一般的な動詞や接続詞は除外します。\nまた、各用語の性質に応じて以下の色を割り当ててください。\n- red: 最重要キーワード、法規制、致命的なリスク\n- orange: 課題、問題点\n- yellow: 一般的な専門用語\n- green: 対策、新技術、環境関連\n- blue: 組織、制度、インフラ施設名\n- purple: その他特筆すべき用語\n\n必ず以下のJSONフォーマットのみを出力してください。\n```json\n{\"keywords\": [{\"word\": \"インフラ老朽化\", \"color\": \"orange\"}, {\"word\": \"予防保全\", \"color\": \"green\"}]}\n```" },
                             { role: "user", content: text }
                         ],
                         response_format: { type: "json_object" }
@@ -523,12 +502,13 @@
                         const parsed = JSON.parse(resultText);
                         keywords = parsed.keywords || [];
                     } catch(e) {
-                        const match = resultText.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/);
+                        const match = resultText.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
                         if (match) keywords = JSON.parse(match[1]).keywords || [];
                     }
 
                     if (keywords.length > 0) {
-                        keywords.sort((a, b) => b.length - a.length);
+                        // 長い単語から先に処理して、部分一致の誤爆を防ぐ
+                        keywords.sort((a, b) => b.word.length - a.word.length);
                         this.highlightKeywordsInDOM(this.dom.editor, keywords);
                         this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
                         this.autoSave();
@@ -536,7 +516,7 @@
                     }
                 } catch (e) {
                     console.error("AI Error:", e);
-                    alert("キーワードの抽出に失敗しました。APIキーやネットワークを確認してください。");
+                    this.showStatus("AI Error");
                 } finally {
                     this.dom.aiBtn.textContent = "✨ AIおまかせ";
                     this.dom.aiBtn.disabled = false;
@@ -546,7 +526,9 @@
             highlightKeywordsInDOM(node, keywords) {
                 if (node.nodeType === Node.TEXT_NODE) {
                     let text = node.nodeValue;
-                    for (const kw of keywords) {
+                    for (const kwObj of keywords) {
+                        const kw = kwObj.word;
+                        const color = kwObj.color || 'yellow';
                         if (!kw || kw.length < 2) continue;
                         const idx = text.indexOf(kw);
                         if (idx !== -1 && node.parentNode && !node.parentNode.classList.contains('marker')) {
@@ -555,7 +537,7 @@
                             
                             const span = document.createElement('span');
                             span.className = `marker ${this.dom.mask.checked ? 'masked' : 'reveal'}`;
-                            span.dataset.color = 'yellow';
+                            span.dataset.color = color;
                             span.textContent = kw;
                             
                             node.parentNode.replaceChild(span, matchNode);
@@ -590,12 +572,10 @@
                     const m = e.target.closest('.marker');
                     if (m) {
                         e.preventDefault();
-                        if(confirm("マーカーを削除しますか？")) {
-                            const textNode = document.createTextNode(m.textContent);
-                            m.replaceWith(textNode);
-                            this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
-                            this.autoSave();
-                        }
+                        const textNode = document.createTextNode(m.textContent);
+                        m.replaceWith(textNode);
+                        this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
+                        this.autoSave();
                     }
                 };
                 this.dom.editor.addEventListener('contextmenu', removeMarker);
@@ -657,7 +637,7 @@
                             this.showStatus("Pasted");
                         }
                     } catch (err) {
-                        alert("権限を許可するか、キーボード(Ctrl+V)をお使いください。");
+                        this.showStatus("Paste denied");
                     }
                 };
                 
