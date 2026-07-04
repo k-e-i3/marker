@@ -55,7 +55,7 @@
             font-size: 18px;
         }
         .icon-btn:hover { background: var(--btn-hover); }
-        #rename-doc-btn { font-size: 20px; line-height: 1; }
+        #rename-doc-btn { font-size: 18px; line-height: 1; }
 
         .status-panel { text-align: right; min-width: 70px; margin-left: 10px; }
         #char-counter { font-size: 11px; font-weight: bold; color: #475569; }
@@ -97,9 +97,8 @@
 
         main { flex: 1; overflow: hidden; background: var(--paper); position: relative; }
         #main-text-area {
-            width: 100%; height: 100%; padding: 30px 5%; font-size: 17px; line-height: 2.0;
+            width: 100%; height: 100%; padding: 20px 16px; font-size: 17px; line-height: 2.0;
             overflow-y: auto; outline: none; white-space: pre-wrap; color: var(--ink);
-            max-width: 900px; margin: 0 auto;
         }
         #main-text-area:empty::before { content: "テキストを入力、または貼り付けてください..."; color: #94a3b8; }
         
@@ -148,8 +147,9 @@
                 <select id="doc-select"></select>
                 <button id="rename-doc-btn" class="icon-btn" title="名前変更">✏️</button>
                 <button id="auth-btn" class="icon-btn" title="Google認証">G</button>
-                <button id="sync-all-btn" class="icon-btn" title="同期">☁</button>
+                <button id="sync-all-btn" class="icon-btn" title="同期">🔄</button>
                 <button id="manual-save-btn" class="icon-btn" title="保存">💾</button>
+                <button id="settings-btn" class="icon-btn" title="設定">⚙️</button>
             </div>
             <div class="status-panel">
                 <div id="char-counter">0 chars</div>
@@ -162,7 +162,7 @@
                 <button class="text-btn" id="ai-btn">✨ AIおまかせ</button>
                 <button class="text-btn" id="paste-btn">貼付</button>
                 <button class="text-btn" id="copy-btn">コピー</button>
-                <button class="text-btn" id="speech-btn">▶ 読上</button>
+                <button class="text-btn" id="speech-btn">🗣️ 読上</button>
                 <select id="speech-rate-select" class="text-btn" style="min-width:60px;">
                     <option value="0.4">0.4x</option>
                     <option value="0.8">0.8x</option>
@@ -183,12 +183,21 @@
     </div>
 
     <div id="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content" id="rename-modal-content">
             <h3>文書名を変更</h3>
             <input type="text" id="rename-input">
             <div style="display:flex; justify-content:flex-end; gap:10px;">
                 <button class="text-btn" id="modal-ok-btn" style="background:var(--accent); color:white; border:none;">決定</button>
                 <button class="text-btn" id="modal-cancel-btn">取消</button>
+            </div>
+        </div>
+        <div class="modal-content" id="settings-modal-content" style="display: none;">
+            <h3>設定 (AI API Key)</h3>
+            <p style="font-size:12px; margin:0;">Groq APIキーを入力してください。<br>※キーはお使いのブラウザにのみ保存されます。</p>
+            <input type="password" id="api-key-input" placeholder="gsk_..." style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-base); outline: none; font-size: 16px; color: var(--ink);">
+            <div style="display:flex; justify-content:flex-end; gap:10px;">
+                <button class="text-btn" id="settings-ok-btn" style="background:var(--accent); color:white; border:none;">保存</button>
+                <button class="text-btn" id="settings-cancel-btn">取消</button>
             </div>
         </div>
     </div>
@@ -375,11 +384,9 @@
                 this.state.isSaving = false;
             }
 
-            // 新規: HTMLベースの読み込みと旧データのマイグレーション
             loadCurrentDoc() {
                 const doc = this.state.documents[this.state.currentIndex];
                 
-                // v8以前のルールベースデータが存在する場合、一度だけHTMLに変換（マイグレーション）
                 if (doc.rules && doc.rules.trim().length > 0) {
                     this.migrateOldRulesToHTML(doc);
                 } else {
@@ -433,7 +440,6 @@
                     }
                 });
 
-                // 変換結果を保存し、古いルールを消去
                 doc.content = this.dom.editor.innerHTML;
                 doc.rules = '';
                 this.autoSave();
@@ -452,7 +458,6 @@
                 });
             }
 
-            // 新規: 選択範囲を直接HTMLのspanで囲む
             createMarker(colorId) {
                 const sel = window.getSelection();
                 if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
@@ -467,7 +472,6 @@
                 try {
                     range.surroundContents(span);
                 } catch(e) {
-                    // 複数要素をまたぐ場合のフォールバック
                     span.appendChild(range.extractContents());
                     range.insertNode(span);
                 }
@@ -477,51 +481,53 @@
                 this.autoSave();
             }
 
-            // 新規: AIによる自動マーキング
             async performAutoMarking() {
                 const text = this.dom.editor.innerText;
                 if (!text.trim()) return;
+
+                const apiKey = localStorage.getItem('groq_api_key');
+                if (!apiKey) {
+                    alert("右上の設定ボタン(⚙️)からGroq APIキーを設定してください。");
+                    return;
+                }
 
                 this.dom.aiBtn.textContent = "✨ 抽出中...";
                 this.dom.aiBtn.disabled = true;
 
                 try {
-                    const apiKey = ""; // Gemini APIキーはCanvas環境により自動注入
-                    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    const url = `https://api.groq.com/openai/v1/chat/completions`;
                     const payload = {
-                        contents: [{ parts: [{ text: text }] }],
-                        systemInstruction: { parts: [{ text: "建設コンサルタントや技術士試験の観点から、入力された文章内の重要な専門用語やキーワードを抽出してください。動詞や一般的な接続詞は除外してください。複合語は分割せず一つの単語として抽出してください。" }] },
-                        generationConfig: {
-                            responseMimeType: "application/json",
-                            responseSchema: {
-                                type: "OBJECT",
-                                properties: { keywords: { type: "ARRAY", items: { type: "STRING" } } }
-                            }
-                        }
+                        model: "llama-3.3-70b-versatile",
+                        messages: [
+                            { role: "system", content: "あなたは技術士試験の専門家です。入力された文章から、建設コンサルタントや技術士試験の観点から重要な専門用語やキーワードを抽出してください。一般的な動詞や接続詞は除外します。複合語は分割せず一つの単語としてください。必ず以下のJSONフォーマットのみを出力してください。\n\`\`\`json\n{\"keywords\": [\"単語1\", \"単語2\"]}\n\`\`\`" },
+                            { role: "user", content: text }
+                        ],
+                        response_format: { type: "json_object" }
                     };
 
+                    const res = await fetch(url, {
+                        method: "POST",
+                        headers: { 
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${apiKey}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+                    const data = await res.json();
+                    const resultText = data.choices[0].message.content;
+
                     let keywords = [];
-                    const delays = [1000, 2000, 4000, 8000, 16000];
-                    for (let i = 0; i < 6; i++) {
-                        try {
-                            const res = await fetch(url, {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify(payload)
-                            });
-                            if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-                            const data = await res.json();
-                            const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                            if (resultText) keywords = JSON.parse(resultText).keywords || [];
-                            break;
-                        } catch (e) {
-                            if (i === 5) throw e;
-                            await new Promise(r => setTimeout(r, delays[i]));
-                        }
+                    try {
+                        const parsed = JSON.parse(resultText);
+                        keywords = parsed.keywords || [];
+                    } catch(e) {
+                        const match = resultText.match(/\`\`\`(?:json)?\s*([\s\S]*?)\s*\`\`\`/);
+                        if (match) keywords = JSON.parse(match[1]).keywords || [];
                     }
 
                     if (keywords.length > 0) {
-                        // 長い単語から先に処理して、部分一致の誤爆を防ぐ
                         keywords.sort((a, b) => b.length - a.length);
                         this.highlightKeywordsInDOM(this.dom.editor, keywords);
                         this.state.documents[this.state.currentIndex].content = this.dom.editor.innerHTML;
@@ -530,7 +536,7 @@
                     }
                 } catch (e) {
                     console.error("AI Error:", e);
-                    alert("キーワードの抽出に失敗しました。");
+                    alert("キーワードの抽出に失敗しました。APIキーやネットワークを確認してください。");
                 } finally {
                     this.dom.aiBtn.textContent = "✨ AIおまかせ";
                     this.dom.aiBtn.disabled = false;
@@ -541,7 +547,7 @@
                 if (node.nodeType === Node.TEXT_NODE) {
                     let text = node.nodeValue;
                     for (const kw of keywords) {
-                        if (!kw || kw.length < 2) continue; // 1文字の誤爆を防ぐ
+                        if (!kw || kw.length < 2) continue;
                         const idx = text.indexOf(kw);
                         if (idx !== -1 && node.parentNode && !node.parentNode.classList.contains('marker')) {
                             const matchNode = node.splitText(idx);
@@ -549,12 +555,11 @@
                             
                             const span = document.createElement('span');
                             span.className = `marker ${this.dom.mask.checked ? 'masked' : 'reveal'}`;
-                            span.dataset.color = 'yellow'; // AI抽出は目立つ黄色に
+                            span.dataset.color = 'yellow';
                             span.textContent = kw;
                             
                             node.parentNode.replaceChild(span, matchNode);
                             
-                            // 残りのテキストノードを再帰処理
                             this.highlightKeywordsInDOM(span.nextSibling, keywords);
                             break; 
                         }
@@ -581,7 +586,6 @@
                     if (m) m.classList.toggle('reveal');
                 });
 
-                // 右クリックまたはダブルクリックでマーカーを削除（テキストに戻す）
                 const removeMarker = (e) => {
                     const m = e.target.closest('.marker');
                     if (m) {
@@ -608,12 +612,27 @@
                 document.getElementById('manual-save-btn').onclick = () => this.saveCurrentToDrive();
                 
                 document.getElementById('rename-doc-btn').onclick = () => {
+                    document.getElementById('settings-modal-content').style.display = 'none';
+                    document.getElementById('rename-modal-content').style.display = 'flex';
                     document.getElementById('rename-input').value = this.state.documents[this.state.currentIndex].title;
                     document.getElementById('modal-overlay').style.display = 'flex';
                 };
                 document.getElementById('modal-ok-btn').onclick = () => this.applyRename();
                 document.getElementById('modal-cancel-btn').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
                 
+                document.getElementById('settings-btn').onclick = () => {
+                    document.getElementById('rename-modal-content').style.display = 'none';
+                    document.getElementById('settings-modal-content').style.display = 'flex';
+                    document.getElementById('api-key-input').value = localStorage.getItem('groq_api_key') || '';
+                    document.getElementById('modal-overlay').style.display = 'flex';
+                };
+                document.getElementById('settings-ok-btn').onclick = () => {
+                    localStorage.setItem('groq_api_key', document.getElementById('api-key-input').value.trim());
+                    document.getElementById('modal-overlay').style.display = 'none';
+                    this.showStatus("Key Saved");
+                };
+                document.getElementById('settings-cancel-btn').onclick = () => document.getElementById('modal-overlay').style.display = 'none';
+
                 document.getElementById('copy-btn').onclick = () => {
                     const dummy = document.createElement("textarea");
                     document.body.appendChild(dummy);
@@ -689,7 +708,7 @@
                     if (this.resumeTimer) { clearInterval(this.resumeTimer); this.resumeTimer = null; }
                     window.speechSynthesis.cancel();
                     this.isSpeaking = false;
-                    this.dom.speechBtn.textContent = "▶ 読上";
+                    this.dom.speechBtn.textContent = "🗣️ 読上";
                     return;
                 }
 
@@ -710,7 +729,7 @@
                 if (chunks.length === 0) return;
 
                 this.isSpeaking = true;
-                this.dom.speechBtn.textContent = "■ 中断";
+                this.dom.speechBtn.textContent = "⏹️ 中断";
                 window.speechSynthesis.cancel();
 
                 let chunkIndex = 0;
@@ -719,7 +738,7 @@
                 const speakNext = () => {
                     if (!this.isSpeaking || chunkIndex >= chunks.length) {
                         this.isSpeaking = false;
-                        this.dom.speechBtn.textContent = "▶ 読上";
+                        this.dom.speechBtn.textContent = "🗣️ 読上";
                         return;
                     }
                     const u = new SpeechSynthesisUtterance(chunks[chunkIndex++]);
@@ -728,7 +747,7 @@
                     u.onend = speakNext;
                     u.onerror = () => {
                         this.isSpeaking = false;
-                        this.dom.speechBtn.textContent = "▶ 読上";
+                        this.dom.speechBtn.textContent = "🗣️ 読上";
                     };
                     window.speechSynthesis.speak(u);
                 };
